@@ -22,4 +22,5 @@ server.listen(8000);
 
 ```
 ### Adding Middleware
-![](readmeimg/middleware.png)
+* Expressjs is all about middleware
+  <img src="readmeimg/middleware" width="200" height="200">
