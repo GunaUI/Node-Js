@@ -1,44 +1,25 @@
 # Node-Js
 
-## NPM Script
+## Express Js
+* Alternatives plain vannila node js , Adonis.js inspired from laravel(php framework), koa , sails... etc
 
-* npm init
+### Install Express
+* install as production dependency
 ```js
-"scripts": {
-    "start": "node app.js"
-    "guna-start-server": "node app.js"
-  },
+npm install --save express
 ```
-* npm start
-* For custom name "npm run guna-start-server"
+* Now use express(app.js)
+```js
+const http = require('http');
 
-## Nodemon
-* npm install nodemon --save-dev
-```js
-"scripts": {
-    "start": "nodemon app.js"
-  },
-```
-* npm start
+const express = require('express');
 
-## Debug
-* Always make sure stop npm start before debug and also select app.js(main file) before click start debug.
+const app = express()
 
-##  Restarting the Debugger Automatically After Editing our App
-* Make sure you installed nodemon globally also
-```js
-npm install nodemon -g  
+const server = http.createServer(app);
+
+server.listen(8000);
+
 ```
-* Make sure your debug config (launch.json) have restart value as true and runtimeExecutable as nodemon not to node
-```js
-{
-      "type": "node",
-      "request": "launch",
-      "name": "Launch Program",
-      "program": "${workspaceFolder}/app.js",
-      "restart": true,
-      "runtimeExecutable": "nodemon",
-     "console": "integratedTerminal"
-  }
-```
-* Ref :  https://code.visualstudio.com/docs/nodejs/nodejs-debugging
+### Adding Middleware
+![](readmeimg/middleware.png)

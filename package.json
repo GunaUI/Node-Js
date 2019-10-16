@@ -19,5 +19,8 @@
   "homepage": "https://github.com/GunaUI/Node-Js#readme",
   "devDependencies": {
     "nodemon": "^1.19.3"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
   }
 }
