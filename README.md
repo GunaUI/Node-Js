@@ -332,3 +332,252 @@ app.use("/admin",adminRouter);
 app.use("/shop",shopRouter);
 ```
 * so now /add-product will match the /admin/add-product route because /admin was already stripped out here  
+
+### Creating HTML Pages
+
+* One part of it is that we manage our views, so what we serve to the user in one place of our application in the views folder (views/shop.html, views/add-product.html)
+* Later we will add concept of templating engines,so that we can dynamically add content into the html files, but for now, let's just start with these files.
+* views/shop.html
+```js
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Add Product</title>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/">Shop</a></li>
+                <li><a href="/admin/add-product">Add Product</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <h1>My Products</h1>
+        <p>List of all the products...</p>
+    </main>
+</body>
+
+</html>
+```
+* views/add-product.html
+```js
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Add Product</title>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/">Shop</a></li>
+                <li><a href="/admin/add-product">Add Product</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <form action="/admin/add-product" method="POST">
+            <input type="text" name="title">
+            <button type="submit">Add Product</button>
+        </form>
+    </main>
+</body>
+
+</html>
+```
+### Serving HTML Pages
+
+* now the goal is to serve the shop.html and add-product.html
+
+* instead of sending some text or this html text here in this case, let's instead send a file with res.sendFile
+
+```js
+res.sendFile(//path));
+```
+* Now here, the question is how does the path look like? The file is in the views folder but how should this path now look like?
+
+* We have use slash to map the html file path here and try like this
+
+```js
+res.sendFile("../views/shop.html")
+```
+* but we are getting error as "path must be absolute"
+
+* So whatever we tried, this doesn't seem to work, the reason for this is that an absolute path would be correct but slash like this actually refers to our root folder on our operating system not to this project folder.
+
+* So in order to construct the path to this directory and this file here ultimately, we can use a feature provided by nodejs core module ("path").
+
+```js
+const path = require('path');
+
+```
+* we create a path with the help of this module by calling the join method, join yields us a path at the end, it returns a path but it constructs this path by concatenating the different segments.
+
+* Now the first segment we should pass here is then actually a global variable made available by nodejs and that is the underscore underscore and that's important, these are two underscores dir name.("__dirname"). This is a global variable which simply holds the absolute path on our operating system
+to this project folder.
+
+*  now we can add a comma and simply add views here because the first segment is basically the path to this whole project folder, then the third segment will be our file, so here shop.html and don't add slashes here because and that's important, we use path join not because of the absolute path, we could build this with dir name and then concatenating this manually too.
+
+* but we're using path join because this will automatically build the path in a way that works on both Linux systems and Windows systems.
+
+* Path join basically detects the operating system you're running on and then automatically builds a correct path.
+
+
+```js
+const path = require('path');
+
+router.get('/', (req, res, next) => {
+  res.sendFile(path.join(__dirname, 'views', 'shop.html'));
+});
+
+```
+* Now with that, we could expect that it works but actually dir name here will point in this routes folder, right. Dir name gives us the path to a file in which we use it and we're using it in the shop.js file in the routes folder, so this will point to the routes folder but views is actually located in a sibling folder to routes.
+
+* So what can we do regarding that? Now the solution is that we add one more segment in there and that is "../" and this simply means go up one level,
+
+```js
+const path = require('path');
+
+router.get('/', (req, res, next) => {
+  res.sendFile(path.join(__dirname, '../', 'views', 'add-product.html'));
+});
+
+```
+### Returning a 404 Page
+
+```js
+app.use((req, res, next)=>{
+    res.sendFile(path.join(__dirname, 'views', '404.html'));
+});
+```
+* we already are in the project folder here because we're in app.js, so we don't need to go up a level here because we already are in the root folder. Instead here we can go right away into the views folder and then serve the 404.html file
+
+### Using a Helper Function for Navigation
+
+* Note : for navigation to root folder for shop and admin its more preferable to use ".." instead of "../" it will work in windows and mac os
+
+```js
+// herer we replaced '../' with '..' its a cleaner way of doing this...
+ res.sendFile(path.join(__dirname, '..', 'views', 'add-product.html'));
+```
+* We could also get the parent directory with the help of a little helper function
+
+* lets create a new file path.js inside utils folder (utils/path.js), this little function help us to construct a path to the parent directory.
+
+```js
+const path = require('path');
+
+module.exports = path.dirname(process.mainModule.filename);
+```
+* process is a global object no need to import
+
+* process.mainModule.filename : this gives us the path to the file that is responsible for the fact that our application is running and this file name is what we put into dirname to get a path to that directory
+
+* Now import this in path.js in your routes folder admin.js as local file import.
+
+```js
+const rootDir = require('../util/path');
+
+res.sendFile(path.join(rootDir, 'views', 'add-product.html'));
+```
+* Now this is more simpler than previous approach.
+
+### Styling our Pages
+
+```css
+        body {
+            padding: 0;
+            margin: 0;
+            font-family: sans-serif;
+        }
+
+        main {
+            padding: 1rem;
+        }
+
+        .main-header {
+            width: 100%;
+            height: 3.5rem;
+            background-color: #dbc441;
+            padding: 0 1.5rem;
+        }
+
+        .main-header__nav {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .main-header__item-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+
+        .main-header__item {
+            margin: 0 1rem;
+            padding: 0;
+        }
+
+        .main-header__item a {
+            text-decoration: none;
+            color: black;
+        }
+
+        .main-header__item a:hover,
+        .main-header__item a:active,
+        .main-header__item a.active {
+            color: #3e00a1;
+        }
+```
+* here for class name we used BEM naming convention Refer : http://getbem.com/naming/
+
+* Added same kind of styles to admin and 404 pages also..
+
+### Serving Files Statically
+
+* I want to use external css files instead of this embeded css.
+
+* lets create a public folder inside our app.  you can create a new subfolder and you can name it whatever you want but the convention is to call it public because you want to indicate that this is a folder that holds content which are always exposed to the public crowd.
+
+* we move css to public/css/main.css with "<link rel="stylesheet" href="/css/min.css">" in stop.html but still this will never work
+
+* we can't aceess this app files statically if we try to access router will direct to 404 status. 
+
+* For this we need a feature expressjs offers us. we need to be able to serve files statically and statically simply means not handled by the express router or other middleware but instead directly forwarded to the file system.
+
+* And for this, we register a new middleware with app use and this this one expressjs ships with,
+
+```js
+app.use(express.static(path.join(__dirname, 'public')))
+```
+* We could add more static middleware like above as per our need
+
+```js
+// shop.html 
+<link rel="stylesheet" href="/css/min.css"
+```
+
+```js
+// product.css
+<link rel="stylesheet" href="/css/main.css">
+<link rel="stylesheet" href="/css/product.css">
+```
+* so basically a folder which we want to grant read access to, it's only read access but that's still more than what we normally have.
+
+*  With this, user should be able to access the public path and now if I save this and I reload shop.html
