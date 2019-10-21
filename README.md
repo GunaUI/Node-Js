@@ -247,3 +247,88 @@ app.use((req, res, next)=>{
 ```
 ### Adding a Layout
 
+* Instead of repeating the same basic template everywhere its better to create a layout and include that layout in our files (views/layout/main-layout.pug)
+
+* each layout the importing file and content might differ but for the same layout. how can we use that ??
+
+* we can introduce blocks and then defining any names as per our choice from inside other files
+
+```js
+<!DOCTYPE html>
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        meta(http-equiv="X-UA-Compatible", content="ie=edge")
+        title Document
+        link(rel="stylesheet", href="/css/main.css")
+        block styles // note here we used block styles
+    body
+        header.main-header
+            nav.main-header__nav
+                ul.main-header__item-list
+                    li.main-header__item
+                        a(href="/") Shop
+                    li.main-header__item
+                         a(href="/admin/add-product", class=(pathParam=='/admin/add-product' ? 'active': '')) Add Product
+        block content // note here we used block contents
+
+```
+* Now let us include this layout in our templates
+
+* 404.pug
+
+```js
+extends layouts/main-layout.pug
+block content
+    h1 Page Not Found! Pug template
+```
+* add-product.pug
+
+```js
+<!DOCTYPE html>
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        meta(http-equiv="X-UA-Compatible", content="ie=edge")
+        title Document
+        link(rel="stylesheet", href="/css/main.css")
+        block styles
+    body
+        header.main-header
+            nav.main-header__nav
+                ul.main-header__item-list
+                    li.main-header__item
+                        a(href="/") Shop
+                    li.main-header__item
+                        a(href="/admin/add-product") Add Product
+        block content
+```
+* How can we dynamically set active class ??
+
+### Finishing the Pug Template
+
+* Let set the active class on the right link depending on the file .
+
+* from routes pass the correspoing path, if both the data path and the link path are equal it will set the active class.
+```js
+//add-product.pug
+res.render('add-product',{docTitle: "Add New Product", pathParam:"/admin/add-product", pageTitle: "Add Product"});
+
+//shop.pug
+res.render('shop',{prods : product, pageTitle: "My Shop", pathParam:"/"})
+
+//404.pug
+res.status(404).render('404',{pageTitle: "404"});
+```
+* then use this pathParam 
+
+```js
+// main-layout.pug
+ul.main-header__item-list
+                    li.main-header__item
+                        a(href="/", class=(pathParam=='/' ? 'active': '')) Shop
+                    li.main-header__item
+                        a(href="/admin/add-product", class=(pathParam=='/admin/add-product' ? 'active': '')) Add Product
+```
