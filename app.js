@@ -4,9 +4,17 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
 
-const app = express()
+const expressHbs = require('express-handlebars'); // we can use any name not necessary expressHbs
 
-app.set('view engine', 'pug');
+const app = express({
+    layoutsDir: 'views/layouts/',
+    defaultLayout: 'main-layout',
+    extname: 'hbs'
+});
+
+app.engine('hbs', expressHbs()); // hbs is the engine name
+
+app.set('view engine', 'hbs'); // we have to use the same name as above (hbs) and also for file extention use the same name.
 
 app.set('views', 'views');
 
