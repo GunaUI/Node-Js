@@ -1,633 +1,206 @@
 # Node-Js
 
-## Dynamic Routes & Advanced Models
+## SQL Introduction
 
-* Now we need to pass some dynamic data through our routes
+### SQL VS NoSQL
 
-### Adding the Product ID to the Path
+* So what is SQL, how does it work then? 
 
-* Lets create a product detail page action. to view details about a product obviouly we need a unique identifier when we save a new product the DB. for time being we will use "this.id = Math.random().toString;"
+* SQL database thinks in so-called tables,
 
-* In can't send the entire the product details as the part of the URL but we can send the key information
+* SQL simply stands for structured query language,
+
+* Refer image folders
+
+### NoSQL Introduction
+
+* Now the name NoSQL simply means that it doesn't follow the approach SQL follows,
+
+* Now in NoSQL, tables are called collections but you can think of them as tables, so as the table equivalent   
+
+* Now in a collection, we don't find records but so-called documents
+
+* NoSQL doesn't have a strict schema. Here we got two documents in the same collection but the second document, Manuel here does not have an age and that is perfectly fine in NoSQL (schemaless Refer image)
+
+* you can store multiple documents with different structures in the same collection.
+
+*  NoSQL world, we got no real relations, instead we go for duplicate data
+
+* PROS : if we ever retrieve data, we don't have to join multiple tables together which can lead to very long and difficult code and which can also impact performance, and therefore this can be done in a super fast way and that is one of the huge advantages of NoSQL, it can be very fast and efficient.
+
+#### NO SQL Characteristic
+
+* So NoSQL characteristics in general are that we have no strong data schema,
+
+* we can have mixed data in the same collection,
+
+* no structure is required and that we have generally no data relations. refer image
+
+* we also got a difference between SQL and NoSQL regarding our scalability.
+
+* So as our application grows and we need to store more add more data and access that data or work with it more frequently, we might need to scale our database servers and we can differentiate between horizontal and vertical scaling.
+
+#### Horizontal vs Vertical scaling
+
+* we often need to scale our database to keep up with our growing application with more and more users
+
+* Horizontal and vertical scaling are the two approaches we can use to scale our database.Now what do they mean? 
+
+##### Horizontal scaling
+
+* Well in horizontal scaling, we simply add more servers.
+
+* the advantage here of course is that we can do this infinitely. We can always buy new servers, be that on a cloud provider or in our own data center and connect them to our database and split our data across all these servers,
+
+* of course this means that we also need some process that runs queries on all of them and merges them together intelligently,so this is generally something which is not that easy to do but this is of course a good way of scaling. (Refer Image)
+
+##### Vertical scaling
+
+* Vertical scaling simply means that we make our existing server stronger by adding more CPU or memory or with something like that, especially with cloud providers, this is typically very easy, you simply choose another option from the dropdown, you pay more and you're done,
+
+* the problem here is that you have some limit, you can't fit infinitely much CPU power into a single machine.
+
+### Setting Up MySQL
+
+* Refer (https://dev.mysql.com/downloads/);
+
+* First download and install MySQL Community Server - macOS 10.14 (x86, 64-bit), DMG Archive
+
+* Intall MySQL Workbench
+
+* MySQL Workbench , Create new schema (eg name : node-complete) , then click apply , now our database is created with name "node-complete".
+
+### Connecting our App to the SQL Database
+
+* Now installation done but to use SQL we need to install the below package.
 
 ```js
-<a href="/products/<%= product.id %>" class="btn"> Details</a>
+npm install --save mysql2
 ```
 
-### Extracting Dynamic Params
+* This package allow us to write and execute SQL code
 
-* Its time to extract these id from the URL, lets go the routes.
+* Now the next step is we need to connect this Db from our app
+
+* DB should create DB and give us object , using that we can run query.
+
+* Now there are 2 ways of connecting our app with MYSQL db
+
+* One is that we setup one connection which we can always use to run queries , we should always close this connection once we done with the query. the issue in this method we have to re-execute this connection for every new query. Creating new connections for each and every query will become inefficient.
+
+* The better way is connection using so called createPool.
+
+* instead of createPool we can use createConnection but we don't want a single connection but a pool of connections which will allow us to always reach out to it whenever we have a query to run and then we get a new connection from that pool which manages multiple connections.
+
+* so that we can run multiple queries simultaneously because each query needs its own connection and once the query is done, the connection will be handed back into the pool and it's available again for a new query and the pool can then be finished when our application shuts down.
 
 ```js
-router.get('/products/:productId', shopController.getProductDetails);
+//database.js
+
+const mysql = require('mysql2');
+
+const pool = mysql.createPool({
+    host: 'localhost',
+    user: 'root',
+    database: 'node-complete',
+    password: 'ciscoBgl#6788'
+});
+
+module.exports = pool.promise();
 ```
-* Important !!! Make sure the dynamic router ordered properly because as we already discussed this orders mater a lot , specific router should move to the top , move the dynamic router bottom because for eg if any url like "/products/delete" looks "/products/:productId" both are same. so we should be careful with the router order.
+* this will allow us to use promises when working with these connections which of course handle asynchronous tasks, asynchronous data instead of callbacks because promises allow us to write code in a bit more structured way,
+
+### Retrieving Data
+
+* Now we can use this database connection to excute our queries
 
 ```js
-exports.getProductDetails = (req, res, next) => {
-    const prodId = req.params.productId;
-    console.log(prodId);
-    res.redirect('/');
-};
+//app.js
+const db = require('./util/database');
+
+db.execute('SELECT * FROM products')
+    .then(result=>{
+        console.log(result);
+    }).catch((err)=>{
+        console.log(err);
+    });
 ```
-### Loading Product Detail Data
 
-* Now we get the dynamic param , next we have to get the product detail data.
+### Fetching Products
 
-* Lets add  a static method 
+* Now we can use db to fetch and save data no need files to save and retrive data anymore.. lets remove files related code..
 
 ```js
-static findById(id,cb) {
-    getProductById(id,cb);
+static fetchAll() {
+    // getProductsFromFile(cb);
+    return db.execute('SELECT * FROM products');
   }
+```
+* Now we have to use promise and next gen feature called destructuring to get query data
 
-// already getProductsFromFile returning the all data from file
-// return product if product id and the id we are passing are same.
-const getProductById= (id,cb) => {
-    getProductsFromFile(products =>{
-        const product = products.find(p => p.id === id);
-        cb(product);
+```js
+Product.fetchAll().then(([rows, fieldData])=>{
+    res.render('shop/product-list', {
+      prods: rows,
+      pageTitle: 'All Products',
+      path: '/products'
     });
-};
-```
-* Now we have to make sure we calling this model function in our controller.
-
-```js
-exports.getProductDetails = (req, res, next) => {
-    const prodId = req.params.productId;
-
-    Product.findById(prodId, product => {
-      console.log(product)
-    })
-    res.redirect('/');
-};
-```
-### Rendering the Product Detail View
-
-* Now we have to render our product details 
-
-```js
-<%- include('../includes/head.ejs') %>
-    </head>
-
-    <body>
-        <%- include('../includes/navigation.ejs') %>
-        <main class="centered">
-            <h1><%= product.title %></h1>
-            <hr>
-            <div>
-                <img src="<%= product.imageUrl %>" alt="<%= product.title %>">
-            </div>
-            <h2><%= product.price %></h2>
-            <p><%= product.description %></p>
-            <form action="/cart" method="post">
-                <button class="btn" type="submit">Add to Cart</button>
-            </form>
-        </main>
-        <%- include('../includes/end.ejs') %>
-```
-
-* Now we have to feed our product data to this template in controller.
-
-```js
-exports.getProductDetails = (req, res, next) => {
-    const prodId = req.params.productId;
-    Product.findById(prodId, product => {
-      res.render('shop/product-detail', {
-        product: product,
-        pageTitle: product.title,
-        path: '/products'
-      });
-    });
-};
-```
-
-### Passing Data with POST Requests
-
-* Now we want to add this product to cart. since we are using this in many places let us create include file and use it where ever it needs
-
-```js
-// include/add-to-cart.js
-<form action="/cart" method="post">
-    <button class="btn" type="submit">Add to Cart</button>
-    <input type="hidden" name="productId" value="<%= product.id %>"/>
-</form>
-```
-* Now we can use this include as per our needs
-
-```js
- <%- include('../includes/add-to-cart.ejs') %>
-```
-
-* But if we have a include in a for loop we need to pass the data to the loop otherwise it won't access data because product is local variable we have to pass that data to the include.
-
-```js
-<%- include('../includes/add-to-cart.ejs',{product: product}) %>
-```
-
-### Adding a Cart Model
-
-* How we want to manage the cart ?? We have to group product by id and then we have to increase the quantity
-
-*  I will first of all create a constructor here which allows us to create a new cart.
-
-```js
-module.exports = class Cart{
-    constructor() {
-        this.product = [];
-        this.totalPrice = 0;
-    }
-}
-```
-* Now what we need on this cart though is a way to add and remove our products.
-
-* if we use the above method we will constantly recreate it but this is not we need instead there always will be a cart in our application and we just want to manage the products in there.  I'll add a static method, add product and  this will take the ID of the product I want to add.
-
-* The goal her is fetch the old or previous cart from our file for now, analyze that and see if we already have that product, find existing product and then add new product or increase the quantity. That is what we plan to do,
-
-```js
-module.exports = class Cart{
-   static addProductToCart(id {
-       // Fetch the previous cart
-
-       // Analyze the cart => Find existing product 
-
-       // Add new product/ increase quantity
-
-   }
-}
-```
-
-* let's start with adding the logic for fetching a cart from a file.
-
-```js
-const fs = require('fs');
-const path = require('path');
-
-const p = path.join(
-  path.dirname(process.mainModule.filename),
-  'data',
-  'cart.json'
-);
-
-module.exports = class Cart{
-   static addProductToCart(id {
-       // Fetch the previous cart
-
-            fs.readFile(p, (err, fileContent) => {
-                // New cart 
-                let cart = { products: [], totalPrice: 0 };
-                if (!err) {
-                    // Existing cart
-                    cart = JSON.parse(fileContent);
-                }
-            });
-
-       // Analyze the cart => Find existing product 
-
-       // Add new product/ increase quantity
-
-   }
-}
-```
-
-* now we can analyze it and add a product,
-
-```js
-cconst fs = require('fs');
-const path = require('path');
-
-const p = path.join(
-  path.dirname(process.mainModule.filename),
-  'data',
-  'cart.json'
-);
-
-module.exports = class Cart {
-   static addProductToCart(id, productPrice){
-       // Fetch the previous cart
-
-            fs.readFile(p, (err, fileContent) => {
-                // New cart 
-                let cart = { products: [], totalPrice: 0 };
-                if(!err) {
-                    // Existing cart
-                    cart = JSON.parse(fileContent);
-                }
-       // Analyze the cart => Find existing product 
-                const existingProductIndex = cart.products.findIndex(
-                    prod => prod.id === id
-                );
-                let updatedProduct;
-                // With the existing product index we have to find the existing product.
-                const existingProduct = cart.products[existingProductIndex];
-
-                 // Add new product/ increase quantity
-                 if (existingProduct) {
-                     // distributing all properties of product to new object
-                    updatedProduct = { ...existingProduct };
-                    // add and increase the qty to +1
-                    updatedProduct.qty = updatedProduct.qty + 1;
-                    // Just copying the old product 
-                    cart.products = [...cart.products];
-                    // Then copying the updatedProduct to that existingProductIndex
-                    cart.products[existingProductIndex] = updatedProduct;
-                }else{
-                    // no existing product ie incase of new product
-
-                    updatedProduct = { id: id, qty : 1}
-                    // here with the other cart details will add our new(updated) product to the cart list
-                    cart.products = [...cart.products, updatedProduct]
-
-                }
-                // Updating totalPrice of the cart 
-                // here we added 2 + sign one before productPrice to convert the price to number from string
-                cart.totalPrice = cart.totalPrice + +productPrice;
-                // updating the cart details to DB ie file
-                fs.writeFile(p, JSON.stringify(cart), err => {
-                    console.log(err);
-                });
-
-            });
-      
-
-   }
-}
-```
-
-### Using Query Params
-
-* Now lets create templeate for edit product , we can copy and use the same template of add-product but it will be more better if we reuse and share the template.
-
-* Since both are same template i no longer need add-product let us use the edit-product and delete addproduct and do the corresponding changes in controller
-
-```js
-exports.getAddProduct = (req, res, next) => {
-  res.render('admin/edit-product', {
-    pageTitle: 'Add Product',
-    path: '/admin/add-product',
+  })
+  .catch(err =>{
+    console.log(err);
   });
-};
-```
-* Now still add Product screen working fine. Now i want a route for edit product 
-
-```js
-// /admin/edit-product => GET
-router.get('/edit-product/:productId', adminController.getEditProduct);
 ```
 
-* Now we have to identity add/ edit using some extra param with "editing : true"
+### Inserting Data Into the Database
 
 ```js
-// eg URL : http://localhost:8000/admin/edit-product/12121212?edit=true
-exports.getEditProduct = (req, res, next) => {
-    // Fetching Query Param
-  const editMode = req.query.edit;
-  if(!editMode){
-    res.redirect('/');
+save() {
+    return db.execute(
+      'INSERT INTO products (title, price, imageUrl, description) VALUES (?, ?, ?, ?)',
+      [this.title, this.price, this.imageUrl, this.description]
+    );
   }
-  res.render('admin/edit-product', {
-    pageTitle: 'Edit Product',
-    path: '/admin/edit-product',
-    editing: editMode
-  });
-  
-};
 ```
-### Pre-Populating the Edit Product Page with Data
-
-* Now we have to get the edit product data from product id 
+* Now we can redireact after promise done
 
 ```js
-exports.getEditProduct = (req, res, next) => {
-  const editMode = req.query.edit;
-  console.log(!editMode)
-  if(!editMode){
-    return res.redirect('/');
-  }
-  const prodId = req.params.productId;
-  Product.findById(prodId, product => {
-    if(!product){
-      return res.redirect('/');
-    }
-    res.render('admin/edit-product', {
-      product: product,
-      pageTitle: 'Edit Product',
-      path: '/admin/edit-product',
-      editing: editMode
-    });
-  });
-};
-```
-* Now we have to update the submit button text based on editing flag
-
-```js
- <button class="btn" type="submit"><% if (editing) { %>Update Product<% } else { %>Add Product<% } %></button>
-```
-* Make sure we are sending the add product editing flag as false.
-
-* Change the submit form logic also to accodmodate add and edit URL
-
-```js
- <form class="product-form" action="/admin/<% if (editing) { %>edit-product<% } else { %>add-product<% } %>" method="POST">
-```
-
-* Same logic to display values for editMode 
-
-```js
-
-<form class="product-form" action="/admin/<% if (editing) { %>edit-product<% } else { %>add-product<% } %>" method="POST">
-    <div class="form-control">
-        <label for="title">Title</label>
-        <input type="text" name="title" id="title" value="<% if (editing) { %><%= product.title %><% } %>">
-    </div>
-    <div class="form-control">
-        <label for="imageUrl">Image URL</label>
-        <input type="text" name="imageUrl" id="imageUrl" value="<% if (editing) { %><%= product.imageUrl %><% } %>">
-    </div>
-    <div class="form-control">
-        <label for="price">Price</label>
-        <input type="number" name="price" id="price" step="0.01" value="<% if (editing) { %><%= product.price %><% } %>">
-    </div>
-    <div class="form-control">
-        <label for="description">Description</label>
-        <textarea name="description" id="description" rows="5"><% if (editing) { %><%= product.description %><% } %></textarea>
-    </div>
-
-    <button class="btn" type="submit"><% if (editing) { %>Update Product<% } else { %>Add Product<% } %></button>
-</form>
-```
-### Linking to the edit page
-
-* Now we have to add query param and product id to edit button 
-
-```js
-<a href="/admin/edit-product/<%= product.id %>?edit=true" class="btn">Edit</a>
-```
-* Then we have to add logic for update product, let us create a post route for edit page.
-
-```js
-router.post('/edit-product', adminController.UpdateProduct);
-```
-
-### Editing the Product Data
-
- * Lets reuse the same save function for both update and save.
-
- ```js
- module.exports = class Product {
-  constructor(id, title, imageUrl, description, price) {
-    this.id = id;
-    this.title = title;
-    this.imageUrl = imageUrl;
-    this.description = description;
-    this.price = price;
-  }
-  
-  save() {
-    getProductsFromFile(products => {
-      if(this.id){
-        // we have to find the existing product and update
-        const existingProductIndex = products.findIndex(prod => prod.id === this.id)
-        const updatedProducts = [...products];
-        // now with the new array we will update updated product using existingProductIndex
-        updatedProducts[existingProductIndex]= this
-        // here we are writing the updated product to the file.
-        fs.writeFile(p, JSON.stringify(updatedProducts), err => {
-          console.log(err);
-        });
-      }else{
-        // Add new product
-        this.id = Math.random().toString();
-        products.push(this);
-        fs.writeFile(p, JSON.stringify(products), err => {
-          console.log(err);
-        });
-      }
-    });
-  }
-
-};
- ```
-
- * After this above change we have to pass null value as id for newly creating product
-
- ```js
- exports.postAddProduct = (req, res, next) => {
+exports.postAddProduct = (req, res, next) => {
   const title = req.body.title;
   const imageUrl = req.body.imageUrl;
   const price = req.body.price;
   const description = req.body.description;
   const product = new Product(null, title, imageUrl, description, price);
-  product.save();
-  res.redirect('/');
-};
- ```
-
- * Also for update product we have to pass hidden product id from form submit.
-
-```js
-<% if (editing) { %>
-    <input type="hidden" value="<%= product.id %>" name="productId">
-<% } %>
-```
-* Then pass this data from controller to module
-
-```js
-const Product = require('../models/product');
-
-exports.updateProduct = (req, res, next) => {
-  const productId = req.body.productId;
-  const title = req.body.title;
-  const imageUrl = req.body.imageUrl;
-  const price = req.body.price;
-  const description = req.body.description;
-  const updatedProduct = new Product(productId, title, imageUrl, description, price);
-  updatedProduct.save();
-  res.redirect('/admin/products');
+  product
+    .save()
+    .then(() => {
+      res.redirect('/');
+    })
+    .catch(err => console.log(err));
 };
 ```
-### Adding the Product-Delete Functionality
+### Fetching a Single Product with the "where" Condition
 
-* Lets create a new router for delete 
-```js
-router.post('/delete-product', adminController.deleteProduct);
-```
-* Let us add controller logic for delete product
+* In module
 
 ```js
-exports.deleteProduct = (req, res, next) => {
-  const productId = req.body.productId;
-  Product.deleteProduct(productId);
-  // it will be better if we have call back and the redirect we will do it later
-  res.redirect('/admin/products');
-};
-```
-* In our module we have to write the corresponding logics
-
-```js
-const deleteProductById=(id) =>{
-  getProductsFromFile(products =>{
-      // here we filtering except that product.
-    const updatedProduct = products.filter(p => p.id !== id);
-    fs.writeFile(p, JSON.stringify(updatedProduct), err => {
-      console.log(err);
-      if(!err){
-        // here we have to write logic to remove product from cart also .. since product removed we have to remove that from cart also.
-      }
-    });
-  });
-}
-
-static deleteProduct(id) {
-    deleteProductById(id);
+static findById(id) {
+    return db.execute('SELECT * FROM products WHERE products.id = ?', [id]);
 }
 ```
-### Deleting Cart Items
-
-* In cart modeule we have to write logics to delete product
+* In controller
 
 ```js
-// we have to delete cart product and we also have to update total price also.
-static deletCartProduct(id, productPrice) {
-    // we have to read all cart product and then we have to apply our logic to that.
-    fs.readFile(p, (err, fileContent) => {
-      if(err){
-        return;
-      }
-      const cart = JSON.parse(fileContent);
-      const updatedCart = {...cart}
-      // In the cart we have to find the product we are going to delete
-      const product = updatedCart.products.find(prod => prod.id === id);
-      const productQty =product.qty;
-      // After we identified the product we have to filter the product exepect the deleting product
-      updatedCart.products = updatedCart.products.filter(prod => prod.id !== id);
-        // We have update total price logic based on the qty added to the cart
-      updatedCart.totalPrice = updatedCart.totalPrice - productQty * productPrice;
-      // Then we have to update the cart file with the new updated data
-      fs.writeFile(p, JSON.stringify(updatedCart), err => {
-        console.log(err);
-      });
-    });
-  }
-```
-* Now we have done with logic to delete the cart , once the product deleted we have to delete the corresponding product added to the cart also.
-
-```js
-// in productModule
-const cartModule = require('./cart');
-
-const deleteProductById=(id) =>{
-  getProductsFromFile(products =>{
-    const deletingProduct = products.filter(p => p.id === id);
-    const updatedProducts = products.filter(p => p.id !== id);
-    fs.writeFile(p, JSON.stringify(updatedProducts), err => {
-      console.log(err);
-      if(!err){
-        cartModule.deletCartProduct(id, deletingProduct.price);
-      }
-    });
-  });
-}
-
-```
-### Displaying Cart Items on the Cart Page
-
-* First we have to fetch the cart item in our controller from our module then we will populate the fetched data in our template.
-
-```js
-// Cart module
-
-static fetchAllCart(cb) {
-    getCartFromFile(cb);
-}
-
-const getCartFromFile = cb => {
-  fs.readFile(p, (err, fileContent) => {
-    if (err) {
-      cb([]);
-    } else {
-      cb(JSON.parse(fileContent));
-    }
-  });
+exports.getProductDetails = (req, res, next) => {
+    const prodId = req.params.productId;
+    Product.findById(prodId)
+          .then(([product]) => {
+            res.render('shop/product-detail', {
+              product: product[0],
+              pageTitle: product[0].title,
+              path: '/products'
+            });
+          }).catch(err =>{
+            console.log(err);
+          });
 };
 ```
-* Now we have filter our product based on cart data.
-
-```js
-// Cart controller
-exports.getCart = (req, res, next) => {
-    // Here we fetching cart data
-  Cart.fetchAllCart(cart => {
-      // Product filtered based on cart data
-    Product.fetchAll(products => {
-      const cartProducts = [];
-      for (product of products){
-          // Here we are collecting cart product data from cart file
-        const cartProductData = cart.products.find(
-          prod => prod.id === product.id
-        );
-        if (cartProductData) {
-          cartProducts.push({ productData: product, qty: cartProductData.qty });
-        }
-      }
-      res.render('shop/cart', {
-        products: cartProducts,
-        pageTitle: 'Your Cart',
-        path: '/cart'
-      });
-    });
-  });
-};
-```
-
-* Now we can use these data in our cart template file
-```js
-<%- include('../includes/head.ejs') %>
-    </head>
-
-    <body>
-        <%- include('../includes/navigation.ejs') %>
-        <main>
-            <% if (products.length > 0) { %>
-                <ul>
-                    <% products.forEach(p => { %>
-                        <li>
-                            <p><%= p.productData.title %> (<%= p.qty %>)</p>
-                            <form action="/cart-delete-item" method="POST">
-                                <input type="hidden" value="<%= p.productData.id %>" name="productId">
-                                <button class="btn" type="submit">Delete</button>
-                            </form>
-                        </li>
-                    <% }) %>
-                </ul>
-            <% } else { %>
-                <h1>No Products in Cart!</h1>
-            <% } %>
-        </main>
-        <%- include('../includes/end.ejs') %>
-```
-* In the above template we have delete btn lets add logics to delete item
-```js
-// In router
-router.post('/cart-delete-item', shopController.postCartDeleteProduct);
-```
-* Let add postCartDeleteProduct controller
-
-```js
-// postCartDeleteProduct Controller 
-exports.postCartDeleteProduct = (req, res, next) => {
-  const prodId = req.body.productId;
-  Product.findById(prodId, product => {
-      // we already have deleteProduct cart
-    Cart.deletCartProduct(prodId, product.price);
-    res.redirect('/cart');
-  });
-};
-```
-### Fixing a Delete Product Bug
-
-
-
-
-
