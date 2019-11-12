@@ -1,167 +1,111 @@
 # Node-Js
 
-## SQL Introduction
+## Sequelize
 
-### SQL VS NoSQL
+*  what is sequelize actually? Sequelize is a third party package, to be precise it's an object relational mapping library
 
-* So what is SQL, how does it work then? 
+* it does all the heavy lifting, all the SQL code behind the scenes for us and maps it into javascript objects with convenience methods which we can call
 
-* SQL database thinks in so-called tables,
+to execute that behind the scenes SQL code so that we never have to write SQL code on our own.(Refer sequlize image)
 
-* SQL simply stands for structured query language,
+* Sequelize offers us the models to work with our database
 
-* Refer image folders
+* We can then instantiate these models, so these classes so to say, we can execute the constructor functions or use utility methods to create let's say a new user object based on that model
 
-### NoSQL Introduction
+* so we have a connection now then we can then run queries on that.
 
-* Now the name NoSQL simply means that it doesn't follow the approach SQL follows,
+* And we can also associate our models, for example we could associate our user model to a product model. (Refer image sequlise core)
 
-* Now in NoSQL, tables are called collections but you can think of them as tables, so as the table equivalent   
-
-* Now in a collection, we don't find records but so-called documents
-
-* NoSQL doesn't have a strict schema. Here we got two documents in the same collection but the second document, Manuel here does not have an age and that is perfectly fine in NoSQL (schemaless Refer image)
-
-* you can store multiple documents with different structures in the same collection.
-
-*  NoSQL world, we got no real relations, instead we go for duplicate data
-
-* PROS : if we ever retrieve data, we don't have to join multiple tables together which can lead to very long and difficult code and which can also impact performance, and therefore this can be done in a super fast way and that is one of the huge advantages of NoSQL, it can be very fast and efficient.
-
-#### NO SQL Characteristic
-
-* So NoSQL characteristics in general are that we have no strong data schema,
-
-* we can have mixed data in the same collection,
-
-* no structure is required and that we have generally no data relations. refer image
-
-* we also got a difference between SQL and NoSQL regarding our scalability.
-
-* So as our application grows and we need to store more add more data and access that data or work with it more frequently, we might need to scale our database servers and we can differentiate between horizontal and vertical scaling.
-
-#### Horizontal vs Vertical scaling
-
-* we often need to scale our database to keep up with our growing application with more and more users
-
-* Horizontal and vertical scaling are the two approaches we can use to scale our database.Now what do they mean? 
-
-##### Horizontal scaling
-
-* Well in horizontal scaling, we simply add more servers.
-
-* the advantage here of course is that we can do this infinitely. We can always buy new servers, be that on a cloud provider or in our own data center and connect them to our database and split our data across all these servers,
-
-* of course this means that we also need some process that runs queries on all of them and merges them together intelligently,so this is generally something which is not that easy to do but this is of course a good way of scaling. (Refer Image)
-
-##### Vertical scaling
-
-* Vertical scaling simply means that we make our existing server stronger by adding more CPU or memory or with something like that, especially with cloud providers, this is typically very easy, you simply choose another option from the dropdown, you pay more and you're done,
-
-* the problem here is that you have some limit, you can't fit infinitely much CPU power into a single machine.
-
-### Setting Up MySQL
-
-* Refer (https://dev.mysql.com/downloads/);
-
-* First download and install MySQL Community Server - macOS 10.14 (x86, 64-bit), DMG Archive
-
-* Intall MySQL Workbench
-
-* MySQL Workbench , Create new schema (eg name : node-complete) , then click apply , now our database is created with name "node-complete".
-
-### Connecting our App to the SQL Database
-
-* Now installation done but to use SQL we need to install the below package.
+### Connecting to the Database
 
 ```js
-npm install --save mysql2
+npm install --save sequelize
 ```
+* Make sure we also installed mysql2
 
-* This package allow us to write and execute SQL code
-
-* Now the next step is we need to connect this Db from our app
-
-* DB should create DB and give us object , using that we can run query.
-
-* Now there are 2 ways of connecting our app with MYSQL db
-
-* One is that we setup one connection which we can always use to run queries , we should always close this connection once we done with the query. the issue in this method we have to re-execute this connection for every new query. Creating new connections for each and every query will become inefficient.
-
-* The better way is connection using so called createPool.
-
-* instead of createPool we can use createConnection but we don't want a single connection but a pool of connections which will allow us to always reach out to it whenever we have a query to run and then we get a new connection from that pool which manages multiple connections.
-
-* so that we can run multiple queries simultaneously because each query needs its own connection and once the query is done, the connection will be handed back into the pool and it's available again for a new query and the pool can then be finished when our application shuts down.
+* Now we have to do sequlize connection and object export
 
 ```js
-//database.js
+const Sequelize = require('sequelize');
 
-const mysql = require('mysql2');
-
-const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    database: 'node-complete',
-    password: 'ciscoBgl#6788'
+// var sequelize = new Sequelize('database', 'username', 'password')
+const sequelize = new Sequelize('node-complete', 'root', 'CiscoBgl#6788', {
+    // database engine
+  dialect: 'mysql',
+  // by default it will set localhost host but still here we set up localhost
+  host: 'localhost'
 });
 
-module.exports = pool.promise();
+module.exports = sequelize;
+
 ```
-* this will allow us to use promises when working with these connections which of course handle asynchronous tasks, asynchronous data instead of callbacks because promises allow us to write code in a bit more structured way,
-
-### Retrieving Data
-
-* Now we can use this database connection to excute our queries
+* We can use this in our models Refer : https://sequelize.org/v5/manual/models-definition.html
 
 ```js
-//app.js
-const db = require('./util/database');
+const Sequelize = require('sequelize');
+// Db connection managed by sequelize
+const sequelizeConnector = require('../util/database');
 
-db.execute('SELECT * FROM products')
-    .then(result=>{
-        console.log(result);
-    }).catch((err)=>{
-        console.log(err);
-    });
-```
-
-### Fetching Products
-
-* Now we can use db to fetch and save data no need files to save and retrive data anymore.. lets remove files related code..
-
-```js
-static fetchAll() {
-    // getProductsFromFile(cb);
-    return db.execute('SELECT * FROM products');
+// product model definition
+const Product = sequelizeConnector.define('product', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    allowNull: false,
+    primaryKey: true
+  },
+  title: Sequelize.STRING,
+  price: {
+    type: Sequelize.DOUBLE,
+    allowNull: false
+  },
+  imageUrl: {
+    type: Sequelize.STRING,
+    allowNull: false
+  },
+  description: {
+    type: Sequelize.STRING,
+    allowNull: false
   }
+});
+
+module.exports = Product;
 ```
-* Now we have to use promise and next gen feature called destructuring to get query data
+### Syncing JS Definitions to the Database
+
+* Sequlize can also create table for us , not only data manage and also it can create table. we need to tell sequlize to create table.
+
+* I want to ensure that all my models are basically transferred into tables or get a table that belongs to them whenever we start our application.
+
+* if the table already exists, it will of course not override it by default though we can tell it to do so.
+
+* Now in my app.js file which is the file execute when I do start my program,
+
+* sync basically syncs your models to the database by creating the appropriate tables.
 
 ```js
-Product.fetchAll().then(([rows, fieldData])=>{
-    res.render('shop/product-list', {
-      prods: rows,
-      pageTitle: 'All Products',
-      path: '/products'
-    });
-  })
-  .catch(err =>{
+// app.js
+const sequelizeConnector = require('../util/database');
+
+sequelizeConnector.sync().then(result =>{
+    console.log(result);
+    // Only want to start my server only after sequlize syc result.
+    app.listen(8000);
+}).catch(err =>{
     console.log(err);
-  });
+})
+// result log response 
+// we named our model as product but here its products because its automatically pluralize it.
+Executing (default): CREATE TABLE IF NOT EXISTS `products` (`id` INTEGER NOT NULL auto_increment , `title` VARCHAR(255), `price` DOUBLE PRECISION NOT NULL, `imageUrl` VARCHAR(255) NOT NULL, `description` VARCHAR(255) NOT NULL, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;
+Executing (default): SHOW INDEX FROM `products`
 ```
+* So now I just get MySQL query here and if we now have a look at the workbench and we right click on our database and click on refresh all, we see that under tables, we get a products table and if we inspect that with this icon, we see all the fields we defined and that is added by sequelize to new fields, created at and updated at.
 
-### Inserting Data Into the Database
+* So it automatically manages some timestamps for us.
 
-```js
-save() {
-    return db.execute(
-      'INSERT INTO products (title, price, imageUrl, description) VALUES (?, ?, ?, ?)',
-      [this.title, this.price, this.imageUrl, this.description]
-    );
-  }
-```
-* Now we can redireact after promise done
+### Inserting Data & Creating a Product
+
+* we will get rid of the old code we used to creating a product and now we will create new product by sequilize
 
 ```js
 exports.postAddProduct = (req, res, next) => {
@@ -169,38 +113,721 @@ exports.postAddProduct = (req, res, next) => {
   const imageUrl = req.body.imageUrl;
   const price = req.body.price;
   const description = req.body.description;
-  const product = new Product(null, title, imageUrl, description, price);
-  product
-    .save()
-    .then(() => {
-      res.redirect('/');
-    })
-    .catch(err => console.log(err));
+  Product.create({
+    title: title,
+    price: price,
+    imageUrl: imageUrl,
+    description: description
+  }).then(response => {
+    console.log(response);
+  }).catch(err => {
+    console.log(err);
+  })
 };
 ```
-### Fetching a Single Product with the "where" Condition
+### Retrieving Data & Finding Products
 
-* In module
-
+* Sequilize does not have fetchAll method but have diff method name findAll.
 ```js
-static findById(id) {
-    return db.execute('SELECT * FROM products WHERE products.id = ?', [id]);
-}
+exports.getIndex = (req, res, next) => {
+  Product.findAll().then(products =>{
+    res.render('shop/index', {
+      prods: products,
+      pageTitle: 'Shop',
+      path: '/'
+    });
+  })
+  .catch(err =>{
+    console.log(err);
+  });
+};
 ```
-* In controller
+
+### Getting a Single Product with the "where" Condition
+
+* First let see getting a product details by primary key
 
 ```js
 exports.getProductDetails = (req, res, next) => {
     const prodId = req.params.productId;
-    Product.findById(prodId)
-          .then(([product]) => {
+    Product.findByPk(prodId)
+          .then((product) => {
             res.render('shop/product-detail', {
-              product: product[0],
-              pageTitle: product[0].title,
+              product: product,
+              pageTitle: product.title,
               path: '/products'
             });
           }).catch(err =>{
             console.log(err);
           });
 };
+```
+* there is one more alternative way to find product but still above method is perfectly alright. this is alternative way using where syntax
+
+```js
+exports.getProductDetails = (req, res, next) => {
+    const prodId = req.params.productId;
+     Product.findAll({where: {id : prodId}}) .then((product) => {
+      res.render('shop/product-detail', {
+        product: product[0],
+        pageTitle: product[0].title,
+        path: '/products'
+      });
+    }).catch(err =>{
+      console.log(err);
+    });
+};
+```
+### Fetching Admin Products
+
+```js
+exports.getProducts = (req, res, next) => {
+  Product.findAll().then(products => {
+    res.render('admin/products', {
+      prods: products,
+      pageTitle: 'Admin Products',
+      path: '/admin/products'
+    });
+  }).catch(err =>{
+    console.log(err);
+  });
+};
+```
+### Updating Products
+
+* Before update lets check our edit call
+
+```js
+exports.getEditProduct = (req, res, next) => {
+  const editMode = req.query.edit;
+  if(!JSON.parse(editMode)){
+    return res.redirect('/');
+  }
+  const prodId = req.params.productId;
+  
+  Product.findByPk(prodId).then(product => {
+    if(!product){
+      return res.redirect('/');
+    }
+    res.render('admin/edit-product', {
+      product: product,
+      pageTitle: 'Edit Product',
+      path: '/admin/edit-product',
+      editing: editMode
+    });
+  }).catch(err => {
+    console.log(err);
+  });
+};
+```
+
+* Now lets update the product details
+
+```js
+exports.updateProduct = (req, res, next) => {
+  const productId = req.body.productId;
+  const title = req.body.title;
+  const imageUrl = req.body.imageUrl;
+  const price = req.body.price;
+  const description = req.body.description;
+
+  Product.findByPk(productId)
+    .then(product => {
+      product.title = title;
+      product.imageUrl = imageUrl;
+      product.price = price;
+      product.description = description;
+      // here save method special method from sequlize to save data to DB
+      // if no product data found it will create product or else update...
+      return product.save();
+    }).then(result => {
+      console.log("Data updated successfully!!");
+      // redirect only async operation done..
+       res.redirect('/admin/products');
+    }).catch(err => {
+      console.log(err);
+    });
+};
+```
+
+### Deleting Products
+
+```js
+exports.deleteProduct = (req, res, next) => {
+  const productId = req.body.productId;
+  Product.findByPk(productId)
+  .then(product => {
+    return product.destroy();
+  }).then(result => {
+    console.log("Deleted successfully!!");
+    res.redirect('/admin/products');
+  }).catch(err => {
+    console.log(err);
+  });
+};
+```
+* Alternative method 
+
+```js
+exports.deleteProduct = (req, res, next) => {
+  const productId = req.body.productId;
+  Product.destroy({where:{
+    id : productId
+  }}).then(result => {
+    console.log("Deleted successfully!!");
+    res.redirect('/admin/products');
+  }).catch(err => {
+    console.log(err);
+  });
+};
+```
+
+### Creating a User Model
+
+```js
+// user model 
+const Sequelize = require('sequelize');
+
+const sequelize = require('../util/database');
+
+const User = sequelize.define('user', {
+    id: {
+        type: Sequelize.INTEGER,
+        autoIncrement: true,
+        allowNull: false,
+        primaryKey: true
+    },
+    name: Sequelize.STRING,
+    email: Sequelize.STRING
+});
+
+module.exports = User;
+```
+### Adding a One-To-Many Relationship (Association).
+
+```js
+const Product = require('./models/product');
+const User = require('./models/user');
+....
+....
+// User created this product 
+
+// here in second object we are defining how this relationship should be managed..
+
+//constraints are used to specify rules for the data in a table.Constraints are used to limit the type of data that can go into a table. This ensures the accuracy and reliability of the data in the table. If there is any violation between the constraint and the data action, the action is aborted.
+
+// cascade delete means that if a record in the parent table is deleted, then the corresponding records in the child table will automatically be deleted. This is called a cascade delete
+
+Product.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
+
+// User might added many product. this is  optional .. we can also replace belongsTo with hasMany class
+User.hasMany(Product);
+
+sequelizeConnector.sync().then(result =>{
+    //console.log(result);
+    app.listen(8000);
+}).catch(err =>{
+    console.log(err);
+})
+
+```
+* Refer sequelize doc for futher other options..
+
+* Now with this being set up, sequelize sync will not just create tables for our models but also define
+
+the relations in our database as we define them here.
+
+```js
+// Response after sync()
+
+Executing (default): DROP TABLE IF EXISTS `products`;
+Executing (default): DROP TABLE IF EXISTS `users`;
+Executing (default): DROP TABLE IF EXISTS `users`;
+Executing (default): CREATE TABLE IF NOT EXISTS `users` (`id` INTEGER NOT NULL auto_increment , `name` VARCHAR(255), `email` VARCHAR(255), `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;
+Executing (default): SHOW INDEX FROM `users`
+Executing (default): DROP TABLE IF EXISTS `products`;
+Executing (default): CREATE TABLE IF NOT EXISTS `products` (`id` INTEGER NOT NULL auto_increment , `title` VARCHAR(255), `price` DOUBLE PRECISION NOT NULL, `imageUrl` VARCHAR(255) NOT NULL, `description` VARCHAR(255) NOT NULL, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `userId` INTEGER, PRIMARY KEY (`id`), FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
+Executing (default): SHOW INDEX FROM `produ
+```
+* in the above respose you could note here in this response "FOREIGN KEY (`userId`) REFERENCES `users` (`id`)" which is created from the above assosiation config
+
+### Creating & Managing a Dummy User
+
+* Just dummy user ..
+
+```js
+// npm start runs this alone..
+sequelizeConnector
+    .sync()
+    .then(result => {
+        return User.findByPk(1);
+    })
+    .then(user => {
+        if (!user) {
+            return User.create({ name: 'Max', email: 'test@test.com' });
+        }
+        return user;
+    })
+    .then(user => {
+        app.listen(8000);
+    })
+    .catch(err => {
+        console.log(err);
+    });
+```
+* As a next step, I'll will register a new middleware because I want to store that user in my request so that I can use it from anywhere in my app conveniently.
+
+```js
+//So this code will only run for incoming requests
+app.use((req, res, next) => {
+    User.findByPk(1)
+    .then(user => {
+      req.user = user;
+      next();
+    })
+    .catch(err => console.log(err));
+});
+
+// sequelizeConnector placed below this middleware..
+```
+* we might wonder if this can ever return a userdata and we are creating sequelizeConnector below the middleware ??
+
+* Now keep in mind, app use here only registers a middleware so for an incoming request, we will then execute this function. 
+
+* Npm start runs this code for the first time and npm start is what runs sequelize here not incoming requests, incoming requests are only funneled through our middleware.
+
+* Also keep in mind the user we're retrieving from the database here is not just a javascript object with the values stored in a database, it's a sequelize object with the value stored in the database and with all these utility methods sequelize added, like destroy.
+
+* So we're storing this sequelize object here in the request and not just a javascript object with the field values, it is that we got the extended version here and therefore whenever we call request user in the future in our app.
+
+### Using Magic Association Methods
+
+* From now on all new products that are created should be associated to the currently logged in user.
+
+* oneway is we could pass this user id as part of reqest data .. something like below
+```js
+Product.create({
+    title: title,
+    price: price,
+    imageUrl: imageUrl,
+    description: description,
+    // here...
+    userId: req.user.id
+  }).then(response => {
+    console.log(response);
+    res.redirect('/admin/products');
+  }).catch(err => {
+    console.log(err);
+  })
+```
+* But we can do this in more eligant way by using sequlize method like below
+```js
+
+```
+* create product method. Now where is that coming from?
+
+* sequelize add special methods depending on the association you added and for a belongs to has many association as we did
+
+* for example to create a new associated object. So since a user has many products or a product belongs to a user as we learned or as we set it up in app.js
+
+* since we have that relation defined, sequelize automatically adds a create product method to the user. Create product because our model is named product and create is then automatically added at the beginning of the method name,that is some magic done by sequelize.
+
+```js
+exports.postAddProduct = (req, res, next) => {
+  const title = req.body.title;
+  const imageUrl = req.body.imageUrl;
+  const price = req.body.price;
+  const description = req.body.description;
+  // Here we used sequlize helper function createProduct... this will update foreign key in product table
+  req.user.createProduct({
+    title: title,
+    price: price,
+    imageUrl: imageUrl,
+    description: description
+  }).then(response => {
+    console.log(response);
+    res.redirect('/admin/products');
+  }).catch(err => {
+    console.log(err);
+  })
+};
+```
+### Fetching Related Products
+
+* Since user details added to the table we have to fetch product details using both user id and product id 
+
+```js
+exports.getEditProduct = (req, res, next) => {
+  const editMode = req.query.edit;
+  if(!JSON.parse(editMode)){
+    return res.redirect('/');
+  }
+  const prodId = req.params.productId;
+  // here we used sequlize helper method to fetch product using userid and product id
+  req.user.getProducts({where: {id: prodId}})
+  .then(products => {
+    const product = products[0]
+    if(!product){
+      return res.redirect('/');
+    }
+    res.render('admin/edit-product', {
+      product: product,
+      pageTitle: 'Edit Product',
+      path: '/admin/edit-product',
+      editing: editMode
+    });
+  }).catch(err => {
+    console.log(err);
+  });
+};
+```
+* The above code will execute the below query
+
+```js
+ SELECT `id`, `title`, `price`, `imageUrl`, `description`, `createdAt`, `updatedAt`, `userId` FROM `products` AS `product` WHERE (`product`.`userId` = 1 AND `product`.`id` = '1');
+```
+* We have to update the other methods also the same way like fetchAll products..
+```js
+exports.getProducts = (req, res, next) => {
+  req.user.getProducts().then(products => {
+    res.render('admin/products', {
+      prods: products,
+      pageTitle: 'Admin Products',
+      path: '/admin/products'
+    });
+  }).catch(err =>{
+    console.log(err);
+  });
+};
+```
+### One-To-Many & Many-To-Many Relations
+
+* Now from a relation or association perspective, a cart should belong to a user and a cart that in turn simply holds products, many products with a quantity associated to them.
+
+* Lets add cart model
+
+```js
+const Sequelize = require('sequelize');
+
+const sequelize = require('../util/database');
+// Here we defining CartItem with cart id alone
+const Cart = sequelize.define('cart', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    allowNull: false,
+    primaryKey: true
+  }
+});
+
+module.exports = Cart;
+
+```
+* Now you might be wondering where are the products?
+
+* we have to keep in mind that a cart should belong to a single user but may hold multiple products.
+
+* The carts table however should hold the different carts for the different users, so we'll not just need the carts table and model, we'll also need a new cart-item.js model
+```js
+const Sequelize = require('sequelize');
+
+const sequelize = require('../util/database');
+// Here we defining CartItem with primary id and qty
+// Details of the product id we will add from association like we did for user
+const CartItem = sequelize.define('cartItem', {
+    id: {
+        type: Sequelize.INTEGER,
+        autoIncrement: true,
+        allowNull: false,
+        primaryKey: true
+    },
+    quantity: Sequelize.INTEGER
+});
+
+module.exports = CartItem;
+```
+* Details of the product id we will add from association like we did for user
+
+* Now its time to add more associations besides products and user.
+
+```js
+const Product = require('./models/product');
+const User = require('./models/user');
+const Cart = require('./models/cart');
+const CartItem = require('./models/cart-item');
+
+Product.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
+User.hasMany(Product);
+
+//This setup below, either of the two approaches will add a key to the cart, a new field to the cart which is the user id to which the cart belongs.
+User.hasOne(Cart);
+Cart.belongsTo(User);
+// here { through: CartItem } telling sequelize where these connection should be stored and that is  cartitem model,
+Cart.belongsToMany(Product, { through: CartItem });
+```
+### Creating & Fetching a Cart
+
+* Just like create dummy user we will create cart for the user.
+
+```js
+sequelizeConnector
+    .sync()
+    .then(result => {
+        return User.findByPk(1);
+    })
+    .then(user => {
+        if (!user) {
+            return User.create({ name: 'Max', email: 'test@test.com' });
+        }
+        return user;
+    })
+    .then(user => {
+      // Just like user creation..
+        return user.createCart();
+    }).then(user => {
+        app.listen(8000);
+    })
+    .catch(err => {
+        console.log(err);
+    });
+```
+* I don't need to pass any data in there because cart in the beginning will not hold any special data.
+
+* we can't access cart as a property "req.user,cart", but we can access using getCartMethod
+
+* we can use it to fetch the products that are inside of it by returning carts get products.
+
+```js
+exports.getCart = (req, res, next) => {
+  req.user.getCart()
+  .then(cart =>{
+    console.log(cart);
+    // This was added by sequlize as magic method..
+    return cart.getProducts().then(products => {
+      res.render('shop/cart', {
+              products: products,
+              pageTitle: 'Your Cart',
+              path: '/cart'
+            });
+    })
+  }).catch(err => {
+      console.log(err);
+  });
+};
+// the above code will output below query
+SELECT `product`.`id`, `product`.`title`, `product`.`price`, `product`.`imageUrl`, `product`.`description`, `product`.`createdAt`, `product`.`updatedAt`, `product`.`userId`, `cartItem`.`id` AS `cartItem.id`, `cartItem`.`quantity` AS `cartItem.quantity`, `cartItem`.`createdAt` AS `cartItem.createdAt`, `cartItem`.`updatedAt` AS `cartItem.updatedAt`, `cartItem`.`cartId` AS `cartItem.cartId`, `cartItem`.`productId` AS `cartItem.productId` FROM `products` AS `product` INNER JOIN `cartItems` AS `cartItem` ON `product`.`id` = `cartItem`.`productId` AND `cartItem`.`cartId` = 1;
+```
+### Adding New Products to the Cart
+
+* we need to work on add card method
+
+*  here add product is another magic method added by sequlize for many to many relationship
+
+```js
+exports.addToCart = (req, res, next) => {
+  const prodId = req.body.productId;
+  let fetchedCart;
+  let newQuantity = 1;
+  req.user
+    .getCart()
+    .then(cart => {
+      fetchedCart = cart;
+      return cart.getProducts({ where: { id: prodId } });
+    })
+    .then(products => {
+      // If product exist...
+      let product;
+      if (products.length > 0) {
+        product = products[0];
+      }
+
+      if (product) {
+        const oldQuantity = product.cartItem.quantity;
+        newQuantity = oldQuantity + 1;
+        return product;
+      }
+      return Product.findByPk(prodId);
+    })
+    .then(product => {
+      // If new product...
+      // here add product is another magic method added by sequlize for many to many relationship
+      // I can add a single product here and I will add it to this in-between table with its ID.
+      // So here I add the product I retrieved,
+      return fetchedCart.addProduct(product, {
+        // I just need to also make sure that I set this extra field I added to my cart item, this is the in-between table
+        // FYI Cart.belongsToMany(Product, { through: CartItem }); // refer app.js
+        through: { quantity: newQuantity }
+      });
+    })
+    .then(() => {
+      res.redirect('/cart');
+    })
+    .catch(err => console.log(err));
+};
+```
+### Deleting Related Items & Deleting Cart Products
+
+```js
+exports.postCartDeleteProduct = (req, res, next) => {
+  const prodId = req.body.productId;
+  req.user
+    .getCart()
+    .then(cart => {
+      return cart.getProducts({ where: { id: prodId } });
+    })
+    .then(products => {
+      const product = products[0];
+      return product.cartItem.destroy();
+    })
+    .then(result => {
+      res.redirect('/cart');
+    })
+    .catch(err => console.log(err));
+};
+```
+### Adding an Order Model
+
+* Well an order is in the end just an in-between table between a user to which the order belongs and then multiple products that are part of the order
+
+```js
+const Sequelize = require('sequelize');
+
+const sequelize = require('../util/database');
+
+const Order = sequelize.define('order', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    allowNull: false,
+    primaryKey: true
+  }
+});
+
+module.exports = Order;
+```
+* Then we will have order quantity in order item model
+
+```js
+const Sequelize = require('sequelize');
+
+const sequelize = require('../util/database');
+
+const OrderItem = sequelize.define('orderItem', {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    allowNull: false,
+    primaryKey: true
+  },
+  quantity: Sequelize.INTEGER
+});
+
+module.exports = OrderItem;
+
+```
+* Now we have to connect these order and order item
+
+```js
+Order.belongsTo(User);
+User.hasMany(Order);
+Order.belongsToMany(Product, { through: OrderItem });
+```
+### Storing Cartitems as Orderitems
+
+```js
+<hr>
+  <div class="centered">
+      <form action="/create-order" method="POST">
+          <button type="submit" class="btn">Order Now!</button>
+      </form>
+  </div>
+```
+* Lets add order routes
+
+```js
+router.post('/create-order', shopController.postOrder);
+```
+
+* Lets add logic for post order controller
+
+```js
+exports.postOrder = (req, res, next) => {
+  let fetchedCart;
+  req.user
+    .getCart()
+    .then(cart => {
+      fetchedCart = cart;
+      return cart.getProducts();
+    })
+    .then(products => {
+      // Just like create cart lets create order magic method
+      return req.user
+        .createOrder()
+        // Executing (default): CREATE TABLE IF NOT EXISTS `orderItems` (`id` INTEGER NOT NULL auto_increment , `quantity` INTEGER, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `orderId` INTEGER, `productId` INTEGER, UNIQUE `orderItems_orderId_productId_unique` (`orderId`, `productId`), PRIMARY KEY (`id`), FOREIGN KEY (`orderId`) REFERENCES `orders` (`id`) ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY (`productId`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
+        .then(order => {
+        // Now this gives us an order but we don't just need the order, we also need to associate our products to that order,
+          return order.addProducts(
+            products.map(product => {
+              // orderItem which is fetched from orderItem model
+              product.orderItem = { quantity: product.cartItem.quantity };
+              return product;
+            })
+          );
+        })
+        .catch(err => console.log(err));
+    })
+    .then(result => {
+      // Here we are dropping cart details since we pushing all our data to order details
+      return fetchedCart.setProducts(null);
+    })
+    .then(result => {
+      res.redirect('/orders');
+    })
+    .catch(err => console.log(err));
+};
+```
+### Resetting the Cart & Fetching and Outputting Orders
+
+```js
+exports.getOrders = (req, res, next) => {
+  req.user
+  // if we want to fetch related products of orders.. we need to include that ..
+    .getOrders({include: ['products']})
+    .then(orders => {
+      res.render('shop/orders', {
+        path: '/orders',
+        pageTitle: 'Your Orders',
+        orders: orders
+      });
+    })
+    .catch(err => console.log(err));
+};
+```
+* corresponding template for orders..
+
+```js
+<%- include('../includes/head.ejs') %>
+    </head>
+
+    <body>
+        <%- include('../includes/navigation.ejs') %>
+        <main>
+            <% if (orders.length <= 0) { %>
+                <h1>Nothing there!</h1>
+            <% } else { %>
+                <ul>
+                    <% orders.forEach(order => { %>
+                        <li>
+                            <h1># <%= order.id %></h1>
+                            <ul>
+                                <% order.products.forEach(product => { %>
+                                    <li><%= product.title %> (<%= product.orderItem.quantity %>)</li>
+                                <% }); %>
+                            </ul>
+                        </li>
+                    <% }); %>
+                </ul>
+            <% } %>
+        </main>
+        <%- include('../includes/end.ejs') %>
 ```
