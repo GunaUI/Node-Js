@@ -1,111 +1,269 @@
 # Node-Js
 
-## Sequelize
+## Mongo Db
 
-*  what is sequelize actually? Sequelize is a third party package, to be precise it's an object relational mapping library
+### What is mongoDB ??
 
-* it does all the heavy lifting, all the SQL code behind the scenes for us and maps it into javascript objects with convenience methods which we can call
+* The name stems from the word humongous because mongodb was built for one major purpose, that you could store and work with lots and lots of data.
 
-to execute that behind the scenes SQL code so that we never have to write SQL code on our own.(Refer sequlize image)
+* So mongodb is built for large scale applications, mongodb is built to quickly query data, store data, interact with data,
 
-* Sequelize offers us the models to work with our database
+* so it's really fast and it's really awesome database philosophy that is behind NoSQL databases
 
-* We can then instantiate these models, so these classes so to say, we can execute the constructor functions or use utility methods to create let's say a new user object based on that model
+### how does it work?
 
-* so we have a connection now then we can then run queries on that.
+* Well just like in the SQL world, we spin up a mongodb server and there we can have multiple databases,
 
-* And we can also associate our models, for example we could associate our user model to a product model. (Refer image sequlise core)
+* in the SQL world, we would have multiple tables, in the NoSQL mongodb world we have multiple collections
 
-### Connecting to the Database
+* Now inside of each collection, we don't have so-called records but we have a couple of documents , documents also look different, than records did.
 
+* the core philosophy behind the database really is a totally different one. For example mongodb is schemaless, inside of one collection, your documents which is your data, your entry so to say don't have to have the same structure.here we can have any kind of data in one and the same collection.(Refer MongoDb image)
+
+* Mongodb uses json to store data in collections,
+
+* To be very precise mongodb uses something which is called bson for binary json but that only means that mongodb kind of transforms this behind the scenes before storing it in the filesbut we don't have to worry about that, we will basically use it as json
+
+### Relations in NoSQL
+
+* instead of just matching by ID as you do it in the SQL world, here you can also depict (copy/repeat) a relation by embedding data into other documents.
+
+* There also are cases where you would have a lot of data duplication and where you need to work with that data a lot and hence it would change a lot and you would have to manually update it in all duplicate places, where using embedded documents is not ideal.
+
+* Refer : Embedded vs Refernece image and NoSql characteristics image...
+
+### Setting Up MongoDB
+
+* Either you could download MongoDb local server or we could use cloud service 
+
+* Let me try cloud environment (MongoDB atlas) , this is free !!!, signup and then create free cluster using default free setup..
+
+* Refer https://cloud.mongodb.com/v2/5dca892eff7a2509fd477526#security/database/users
+
+* Now we have to create Db users with read and write 
+
+* Next step is IP white list - Add IP address of current IP address since node app runs locally on our machine our node app will have this IP address later while deploy we have to use different IP addressnof our server, This is Good security feature this will make sure no unauthorised user can't access
+
+### Installing the MongoDB Driver
+
+* let's add the mongodb driver which simply is a package we can use to connect to mongodb
 ```js
-npm install --save sequelize
+npm install --save mongodb
 ```
-* Make sure we also installed mysql2
+* Let do the initial driver set up in app.js to use mongodb before that remove sequlize related setup.
 
-* Now we have to do sequlize connection and object export
+* Now lets do the database connectivity related changes in utils/database.js
 
 ```js
-const Sequelize = require('sequelize');
+// This gives us access to mongodb package
+const mongodb = require('mongodb');
+// In that, we can extract a Mongo Client constructor by simply accessing mongodb,
+const MongoClient = mongodb.MongoClient;
 
-// var sequelize = new Sequelize('database', 'username', 'password')
-const sequelize = new Sequelize('node-complete', 'root', 'CiscoBgl#6788', {
-    // database engine
-  dialect: 'mysql',
-  // by default it will set localhost host but still here we set up localhost
-  host: 'localhost'
+const mongoConnect = callback => {
+  // coppied from mongo cloud connect URL refer image (MongoDb connect)
+  // Make sure to update usename and password in above url
+  MongoClient.connect(
+    'mongodb+srv://guna:<password>@nodemongo-jwgkk.mongodb.net/test?retryWrites=true&w=majority', { useUnifiedTopology: true }
+  )
+    .then(client => {
+      console.log('Connected!');
+      callback(client);
+    })
+    .catch(err => {
+      console.log(err);
+    });
+};
+
+module.exports = mongoConnect;
+
+```
+* Now we have to connect this callback method in app.js
+
+```js
+const mongoConnect = require('./util/database');
+mongoConnect(client => {
+    console.log(client);
+    app.listen(3000);
 });
-
-module.exports = sequelize;
-
 ```
-* We can use this in our models Refer : https://sequelize.org/v5/manual/models-definition.html
+* In case if you are facing any connection time-out issue check your ip whitelist
 
 ```js
-const Sequelize = require('sequelize');
-// Db connection managed by sequelize
-const sequelizeConnector = require('../util/database');
+// Response from above client
+MongoClient {
+  _events: [Object: null prototype] {},
+  _eventsCount: 0,
+  _maxListeners: undefined,
+  s:
+   { url:
+      'mongodb+srv://guna:0987654321@nodemongo-jwgkk.mongodb.net/test?retryWrites=true&w=majority',
+     options:
+      { servers: [Array],
+        retryWrites: true,
+        w: 'majority',
+        ssl: true,
+        authSource: 'admin',
+        replicaSet: 'NodeMongo-shard-0',
+        caseTranslate: true,
+        useUnifiedTopology: true,
+        auth: [Object],
+        dbName: 'test',
+        srvHost: 'nodemongo-jwgkk.mongodb.net',
+        socketTimeoutMS: 360000,
+        connectTimeoutMS: 30000,
+        useRecoveryToken: true,
+        readPreference: [ReadPreference],
+        credentials: [MongoCredentials],
+        promiseLibrary: [Function: Promise] },
+     promiseLibrary: [Function: Promise],
+     dbCache: Map {},
+     sessions: Set {},
+     writeConcern: undefined,
+     namespace: MongoDBNamespace { db: 'admin', collection: undefined } },
+  topology:
+   NativeTopology {
+     _events:
+      [Object: null prototype] {
+        topologyDescriptionChanged: [Array],
+        authenticated: [Function],
+        error: [Function],
+        timeout: [Function],
+        close: [Function],
+        parseError: [Function],
+        fullsetup: [Function],
+        all: [Function],
+        reconnect: [Function],
+        serverOpening: [Function],
+        serverDescriptionChanged: [Function],
+        serverHeartbeatStarted: [Function],
+        serverHeartbeatSucceeded: [Function],
+        serverHeartbeatFailed: [Function],
+        serverClosed: [Function],
+        topologyOpening: [Function],
+        topologyClosed: [Function],
+        commandStarted: [Function],
+        commandSucceeded: [Function],
+        commandFailed: [Function],
+        joined: [Function],
+        left: [Function],
+        ping: [Function],
+        ha: [Function] },
+     _eventsCount: 24,
+     _maxListeners: Infinity,
+     s:
+      { id: 0,
+        options: [Object],
+        seedlist: [Array],
+        state: 'connected',
+        description: [TopologyDescription],
+        serverSelectionTimeoutMS: 30000,
+        heartbeatFrequencyMS: 10000,
+        minHeartbeatFrequencyMS: 500,
+        Cursor: [Function: Cursor],
+        bson: BSON {},
+        servers: [Map],
+        sessionPool: [ServerSessionPool],
+        sessions: Set {},
+        promiseLibrary: [Function: Promise],
+        credentials: [MongoCredentials],
+        clusterTime: [Object],
+        monitorTimers: [Set],
+        iterationTimers: Set {},
+        connectionTimers: Set {},
+        clientInfo: [Object],
+        srvPoller: [SrvPoller],
+        detectTopologyDescriptionChange: [Function] } } }
+```
+### Creating the Database Connection
 
-// product model definition
-const Product = sequelizeConnector.define('product', {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true
-  },
-  title: Sequelize.STRING,
-  price: {
-    type: Sequelize.DOUBLE,
-    allowNull: false
-  },
-  imageUrl: {
-    type: Sequelize.STRING,
-    allowNull: false
-  },
-  description: {
-    type: Sequelize.STRING,
-    allowNull: false
+* Now lets work on product module which is used by admin router 
+
+* Unlike sequlize db we no need to create db those will be created on the fly.
+
+* In SQL we had to prepare everything in advance, we're just telling mongodb hey connect me to the shop database
+
+and if that database doesn't exist yet, mongodb will create it as soon as we start writing
+
+data to it.
+
+```js
+const mongodb = require('mongodb');
+const MongoClient = mongodb.MongoClient;
+
+let _db;
+const mongoConnect = callback => {
+  MongoClient.connect(
+    // by default test as database name you could find in the URL
+    'mongodb+srv://guna:0987654321@nodemongo-jwgkk.mongodb.net/test?retryWrites=true&w=majority',{ useUnifiedTopology: true }
+  )
+    .then(client => {
+      console.log('Connected!');
+      //here we could override database name...
+      //_db = client.db('test');
+      _db = client.db();
+      callback();
+    })
+    .catch(err => {
+      console.log(err);
+      throw err;
+    });
+};
+
+const getDb = () => {
+  if(_db){
+    return _db;
   }
-});
+  throw "No DB connection found";
+};
 
+exports.mongoConnect = mongoConnect;
+exports.getDb = getDb;
+
+```
+* So now I'm exporting two methods, one for connecting and then storing the connection to the database
+
+* Now let us do product model
+
+```js
+const getDb = require('../util/database').getDb;
+
+class Product {
+  constructor(title, price, description, imageUrl ){
+    this.title = title;
+    this.price = price;
+    this.description = description;
+    this.imageUrl = imageUrl;
+  }
+
+  save() {
+    const db = getDb();
+    // collection ====> Table refer https://docs.mongodb.com/manual/crud/
+    // db.collection('products').insertOne({name: 'A Book', price: 2323.44});
+    // db.collection('products').insertMany([{name: 'A Book', price: 2323.44},{name: 'A Book', price: 2323.44}]);
+    return db.collection('products').insertOne(this).then(result =>{
+      console.log(result)
+    }).catch(err =>{
+      console.log(err)
+    });
+  }
+}
 module.exports = Product;
 ```
-### Syncing JS Definitions to the Database
-
-* Sequlize can also create table for us , not only data manage and also it can create table. we need to tell sequlize to create table.
-
-* I want to ensure that all my models are basically transferred into tables or get a table that belongs to them whenever we start our application.
-
-* if the table already exists, it will of course not override it by default though we can tell it to do so.
-
-* Now in my app.js file which is the file execute when I do start my program,
-
-* sync basically syncs your models to the database by creating the appropriate tables.
+* Make user we updated our mongoconnect object with the correct path.
 
 ```js
-// app.js
-const sequelizeConnector = require('../util/database');
+const mongoConnect = require('./util/database').mongoConnect;
 
-sequelizeConnector.sync().then(result =>{
-    console.log(result);
-    // Only want to start my server only after sequlize syc result.
+mongoConnect(() => {
     app.listen(8000);
-}).catch(err =>{
-    console.log(err);
-})
-// result log response 
-// we named our model as product but here its products because its automatically pluralize it.
-Executing (default): CREATE TABLE IF NOT EXISTS `products` (`id` INTEGER NOT NULL auto_increment , `title` VARCHAR(255), `price` DOUBLE PRECISION NOT NULL, `imageUrl` VARCHAR(255) NOT NULL, `description` VARCHAR(255) NOT NULL, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;
-Executing (default): SHOW INDEX FROM `products`
+});
 ```
-* So now I just get MySQL query here and if we now have a look at the workbench and we right click on our database and click on refresh all, we see that under tables, we get a products table and if we inspect that with this icon, we see all the fields we defined and that is added by sequelize to new fields, created at and updated at.
+* View add product page is just a template it will work fine without but we need to work on create/update product.
 
-* So it automatically manages some timestamps for us.
+### Creating Products
 
-### Inserting Data & Creating a Product
-
-* we will get rid of the old code we used to creating a product and now we will create new product by sequilize
+* postAddProduct - Let update our add product controller
 
 ```js
 exports.postAddProduct = (req, res, next) => {
@@ -113,61 +271,124 @@ exports.postAddProduct = (req, res, next) => {
   const imageUrl = req.body.imageUrl;
   const price = req.body.price;
   const description = req.body.description;
-  Product.create({
-    title: title,
-    price: price,
-    imageUrl: imageUrl,
-    description: description
-  }).then(response => {
-    console.log(response);
-  }).catch(err => {
-    console.log(err);
-  })
+  // Here we are passing data to product model constructor..
+  const product = new Product(title, price, description, imageUrl);
+  product
+    .save()
+    .then(result => {
+      // console.log(result);
+      console.log('Created Product');
+      res.redirect('/admin/products');
+    })
+    .catch(err => {
+      console.log(err);
+    });
 };
-```
-### Retrieving Data & Finding Products
 
-* Sequilize does not have fetchAll method but have diff method name findAll.
+// Console log
+
+[ Product {
+       title: 'zczxczc',
+       price: '2',
+       description: 'zczxc',
+       imageUrl: 'xzczc',
+       // return insertedCount and _id which is dynamically created ID
+       _id: 5dce3e7380009da82acdc173 } ],
+  insertedCount: 1,
+  insertedId: 5dce3e7380009da82acdc173 }
+```
+
+### Understanding the MongoDB Compass
+
+* We did insert a product into our mongodb database which is awesome.Now I also want to see it and before we actually fetch it in our node application, let me show you another tool called compass.
+
+* Download and install https://www.mongodb.com/download-center/compass
+
+* Since mac not supporting dmg file in my machine i didn't try this am using mongo cloud service atlas.
+
+### Fetching All Products
+
 ```js
-exports.getIndex = (req, res, next) => {
-  Product.findAll().then(products =>{
-    res.render('shop/index', {
+
+static fetchAll() {
+    const db = getDb();
+    return db
+      .collection('products')
+      .find()
+      .toArray()
+      .then(products => {
+        console.log(products);
+        return products;
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+```
+*  Now the important thing about find is find does not immediately return a promise though, instead it returns a so-called cursor.
+
+* A cursor is an object provided by mongodb which allows us to go through our documents step by step because theoretically in a collection, find could of course return millions of documents and you don't want to transfer them over the wire all
+at once.
+
+* So instead find gives you a handle which you can use to tell mongodb ok give me the next document, ok give me the next document and so on.
+
+* there is a toArray method you can execute to tell mongodb to get all documents and turn them into a javascript array
+
+* but you should only use that if you know that we're talking about hunderds odf document, otherwise we could use pagination we will see that soon..
+
+* Now we have fetch all product model now we can call this in controller to use these in template..
+
+```js
+exports.getProducts = (req, res, next) => {
+  // Here fetchall method is models static method name.. we could use user defined name..
+  Product.fetchAll().then(products=>{
+    res.render('shop/product-list', {
       prods: products,
-      pageTitle: 'Shop',
-      path: '/'
+      pageTitle: 'All Products',
+      path: '/products'
     });
   })
   .catch(err =>{
     console.log(err);
   });
+  
 };
 ```
+### Working on the Product Model to Edit our Product
 
-### Getting a Single Product with the "where" Condition
+```js
+static findById(prodId) {
+    const db = getDb();
+    return db
+      .collection('products')
+      //here, I want to look for a product where _id is equal to prod ID because that's the ID of the product I'm looking for. it might bring one product or many product.. so..
+      //actually find will still give me a cursor because mongodb doesn't know that It will only get one
+      // since in mongo db document _id is saved as bson format object("5dce3e7380009da82acdc173"), since prodId is just string  because a string is not equal to the object id we need to use mongodb.ObjectId
+      // here we using find that is why we used next .. if we used findone no need to use next.
 
-* First let see getting a product details by primary key
+      .find({ _id: new mongodb.ObjectId(prodId) })
+      .next()
+      .then(product => {
+        console.log(product);
+        return product;
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+```
+* since in mongo db document _id is saved as bson format object("5dce3e7380009da82acdc173"), since prodId is just string  because a string is not equal to the object id we need to use mongodb.ObjectId
 
+* Make sure we imported mongodb in this model before we use mongodb.ObjectId.
+
+*  here we using find that is why we used next .. if we used findone no need to use next.
+* cursor.next() - Iterates the cursor and returns a Promise that resolves to the next document in the cursor. If the cursor is exhausted, the promise resolves to undefined.
+
+* Lets use the above model to the controller..
 ```js
 exports.getProductDetails = (req, res, next) => {
     const prodId = req.params.productId;
-    Product.findByPk(prodId)
-          .then((product) => {
-            res.render('shop/product-detail', {
-              product: product,
-              pageTitle: product.title,
-              path: '/products'
-            });
-          }).catch(err =>{
-            console.log(err);
-          });
-};
-```
-* there is one more alternative way to find product but still above method is perfectly alright. this is alternative way using where syntax
-
-```js
-exports.getProductDetails = (req, res, next) => {
-    const prodId = req.params.productId;
-     Product.findAll({where: {id : prodId}}) .then((product) => {
+    Product.findById(prodId).then((product) => {
       res.render('shop/product-detail', {
         product: product[0],
         pageTitle: product[0].title,
@@ -178,50 +399,51 @@ exports.getProductDetails = (req, res, next) => {
     });
 };
 ```
-### Fetching Admin Products
+### Working on the Product Model to update
+
+* To upate product we need _id as optional parameter in product constructor 
+
+* update one takes at least two arguments.
+
+* The first one is that we add a filter that defines which element or which document we want to update.
+
+* Second object arument is not "this",  is not new object  Instead we have to describe the operation and we do this by using a special property name which is understood by mongodb, kind of a reserved name you could say, $set.This again takes an object as a value { $set : this } similar to ===> { $set : {title : this.title, price : this.price...} }
 
 ```js
-exports.getProducts = (req, res, next) => {
-  Product.findAll().then(products => {
-    res.render('admin/products', {
-      prods: products,
-      pageTitle: 'Admin Products',
-      path: '/admin/products'
-    });
-  }).catch(err =>{
-    console.log(err);
-  });
-};
-```
-### Updating Products
-
-* Before update lets check our edit call
-
-```js
-exports.getEditProduct = (req, res, next) => {
-  const editMode = req.query.edit;
-  if(!JSON.parse(editMode)){
-    return res.redirect('/');
+class Product {
+  constructor(title, price, description, imageUrl, id ){
+    this.title = title;
+    this.price = price;
+    this.description = description;
+    this.imageUrl = imageUrl;
+    this._id = new mongodb.ObjectId(id);
   }
-  const prodId = req.params.productId;
-  
-  Product.findByPk(prodId).then(product => {
-    if(!product){
-      return res.redirect('/');
+  save() {
+    const db = getDb();
+    let dbObj;
+    if(this._id){
+      // update product
+      // update one takes at least two arguments.
+      // The first one is that we add a filter that defines which element or which document we want to update,
+      // Second object arument is not "this",  is not new object  Instead we have to describe the operation and we do this by using a special property name which is understood by mongodb, kind of a reserved name you could say, $set.This again takes an object as a value
+      //{ $set : this } similar to ===> { $set : {title : this.title, price : this.price...} }
+      dbObj = db.collection('products').updateOne({_id: this._id},{ $set : this });
+    }else{
+      // collection ====> Table refer https://docs.mongodb.com/manual/crud/
+      // db.collection('products').insertOne({name: 'A Book', price: 2323.44});
+      dbObj = db.collection('products').insertOne(this);
     }
-    res.render('admin/edit-product', {
-      product: product,
-      pageTitle: 'Edit Product',
-      path: '/admin/edit-product',
-      editing: editMode
-    });
-  }).catch(err => {
-    console.log(err);
-  });
-};
+      return dbObj.then(result =>{
+        console.log(result)
+      }).catch(err =>{
+        console.log(err)
+      });
+  }
 ```
 
-* Now lets update the product details
+* Now our update model is ready we have to do changes in  our controller for update product accordingly..
+
+* Similar like addProduct here we just added productId as one of the constructor object.Make sure we imported mongoDb for "mongoDb.ObjectID"
 
 ```js
 exports.updateProduct = (req, res, next) => {
@@ -230,35 +452,47 @@ exports.updateProduct = (req, res, next) => {
   const imageUrl = req.body.imageUrl;
   const price = req.body.price;
   const description = req.body.description;
-
-  Product.findByPk(productId)
-    .then(product => {
-      product.title = title;
-      product.imageUrl = imageUrl;
-      product.price = price;
-      product.description = description;
-      // here save method special method from sequlize to save data to DB
-      // if no product data found it will create product or else update...
-      return product.save();
-    }).then(result => {
-      console.log("Data updated successfully!!");
-      // redirect only async operation done..
-       res.redirect('/admin/products');
-    }).catch(err => {
-      console.log(err);
-    });
+  const product = new Product(title, price, imageUrl, description, productId);
+  product
+  .save()
+  .then(result => {
+    console.log("Data updated successfully!!");
+    res.redirect('/admin/products');
+  }).catch(err => {
+    console.log(err);
+  });
+  
 };
 ```
+### Delete product 
 
-### Deleting Products
+* As usual lets add model logic for delete an item
+
+```js
+static deleteById(prodId) {
+    const db = getDb();
+    return db
+      .collection('products')
+      //here, I want to look for a product where _id is equal to prod ID because that's the ID of the product I'm looking for. it might bring one product or many product.. so..
+      //actually find will still give me a cursor because mongodb doesn't know that It will only get one
+      // since in mongo db document _id is saved as bson format object("5dce3e7380009da82acdc173"), since prodId is just string  because a string is not equal to the object id we need to use mongodb.ObjectId
+      .deleteOne({ _id: new mongodb.ObjectId(prodId) })
+      .then(product => {
+        console.log(product);
+        return product;
+      })
+      .catch(err => {
+        console.log(err);
+      });
+  }
+```
+* Lets add controller details for the above static delete method.
 
 ```js
 exports.deleteProduct = (req, res, next) => {
   const productId = req.body.productId;
-  Product.findByPk(productId)
-  .then(product => {
-    return product.destroy();
-  }).then(result => {
+  Product.deleteById(productId)
+  .then(() => {
     console.log("Deleted successfully!!");
     res.redirect('/admin/products');
   }).catch(err => {
@@ -266,533 +500,490 @@ exports.deleteProduct = (req, res, next) => {
   });
 };
 ```
-* Alternative method 
+* Note : Make sure we are having proper routes for all the controller!!!
+
+### Creating New Users
+
+* Now let me show you how you can now work with relations and for that, let's work with some users again.
+* Now we have to work in user model
 
 ```js
-exports.deleteProduct = (req, res, next) => {
-  const productId = req.body.productId;
-  Product.destroy({where:{
-    id : productId
-  }}).then(result => {
-    console.log("Deleted successfully!!");
-    res.redirect('/admin/products');
-  }).catch(err => {
-    console.log(err);
-  });
-};
-```
+const mongodb = require('mongodb');
+const getDb = require('../util/database').getDb;
 
-### Creating a User Model
+const ObjectId = mongodb.ObjectId;
 
-```js
-// user model 
-const Sequelize = require('sequelize');
+class User {
+    constructor(username, email) {
+        this.name = username;
+        this.email = email;
+    }
 
-const sequelize = require('../util/database');
+    save() {
+        const db = getDb();
+        return db.collection('users').insertOne(this);
+        }
 
-const User = sequelize.define('user', {
-    id: {
-        type: Sequelize.INTEGER,
-        autoIncrement: true,
-        allowNull: false,
-        primaryKey: true
-    },
-    name: Sequelize.STRING,
-    email: Sequelize.STRING
-});
+    static findById(userId) {
+        const db = getDb();
+        return db
+            .collection('users')
+            .findOne({ _id: new ObjectId(userId) })
+            .then(user => {
+            console.log(user);
+            return user;
+            })
+            .catch(err => {
+            console.log(err);
+            });
+    }
+}
 
 module.exports = User;
 ```
-### Adding a One-To-Many Relationship (Association).
+* here we using findOne that is why we didn't used next .. if we used findone no need to use next.
+* cursor.next() - Iterates the cursor and returns a Promise that resolves to the next document in the cursor. If the cursor is exhausted, the promise resolves to undefined.
+
+* Now we have to use above user model to fetch user details using app.use middleware..
 
 ```js
-const Product = require('./models/product');
-const User = require('./models/user');
-....
-....
-// User created this product 
-
-// here in second object we are defining how this relationship should be managed..
-
-//constraints are used to specify rules for the data in a table.Constraints are used to limit the type of data that can go into a table. This ensures the accuracy and reliability of the data in the table. If there is any violation between the constraint and the data action, the action is aborted.
-
-// cascade delete means that if a record in the parent table is deleted, then the corresponding records in the child table will automatically be deleted. This is called a cascade delete
-
-Product.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
-
-// User might added many product. this is  optional .. we can also replace belongsTo with hasMany class
-User.hasMany(Product);
-
-sequelizeConnector.sync().then(result =>{
-    //console.log(result);
-    app.listen(8000);
-}).catch(err =>{
-    console.log(err);
-})
-
-```
-* Refer sequelize doc for futher other options..
-
-* Now with this being set up, sequelize sync will not just create tables for our models but also define
-
-the relations in our database as we define them here.
-
-```js
-// Response after sync()
-
-Executing (default): DROP TABLE IF EXISTS `products`;
-Executing (default): DROP TABLE IF EXISTS `users`;
-Executing (default): DROP TABLE IF EXISTS `users`;
-Executing (default): CREATE TABLE IF NOT EXISTS `users` (`id` INTEGER NOT NULL auto_increment , `name` VARCHAR(255), `email` VARCHAR(255), `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB;
-Executing (default): SHOW INDEX FROM `users`
-Executing (default): DROP TABLE IF EXISTS `products`;
-Executing (default): CREATE TABLE IF NOT EXISTS `products` (`id` INTEGER NOT NULL auto_increment , `title` VARCHAR(255), `price` DOUBLE PRECISION NOT NULL, `imageUrl` VARCHAR(255) NOT NULL, `description` VARCHAR(255) NOT NULL, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `userId` INTEGER, PRIMARY KEY (`id`), FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
-Executing (default): SHOW INDEX FROM `produ
-```
-* in the above respose you could note here in this response "FOREIGN KEY (`userId`) REFERENCES `users` (`id`)" which is created from the above assosiation config
-
-### Creating & Managing a Dummy User
-
-* Just dummy user ..
-
-```js
-// npm start runs this alone..
-sequelizeConnector
-    .sync()
-    .then(result => {
-        return User.findByPk(1);
-    })
-    .then(user => {
-        if (!user) {
-            return User.create({ name: 'Max', email: 'test@test.com' });
-        }
-        return user;
-    })
-    .then(user => {
-        app.listen(8000);
-    })
-    .catch(err => {
-        console.log(err);
-    });
-```
-* As a next step, I'll will register a new middleware because I want to store that user in my request so that I can use it from anywhere in my app conveniently.
-
-```js
-//So this code will only run for incoming requests
 app.use((req, res, next) => {
-    User.findByPk(1)
+  User.findById('5baa2528563f16379fc8a610')
     .then(user => {
       req.user = user;
       next();
     })
     .catch(err => console.log(err));
 });
+// Console.log
 
-// sequelizeConnector placed below this middleware..
+ _id: 5dd0bd381c9d440000906f42,
+  name: 'Guna',
+  email: 'reachtoguna@gmail.com' }
 ```
-* we might wonder if this can ever return a userdata and we are creating sequelizeConnector below the middleware ??
 
-* Now keep in mind, app use here only registers a middleware so for an incoming request, we will then execute this function. 
+### Storing the User in our Database
 
-* Npm start runs this code for the first time and npm start is what runs sequelize here not incoming requests, incoming requests are only funneled through our middleware.
+* when saving a product, I want to store a reference to a user here or embed the entire user data as you learned.
 
-* Also keep in mind the user we're retrieving from the database here is not just a javascript object with the values stored in a database, it's a sequelize object with the value stored in the database and with all these utility methods sequelize added, like destroy.
+* However for products in users, you could actually find arguments for both approaches here,
 
-* So we're storing this sequelize object here in the request and not just a javascript object with the field values, it is that we got the extended version here and therefore whenever we call request user in the future in our app.
+* you certainly don't want to enclose all the user data in an embedded document because that would mean that if the user data changes, you need to change that data in all products
 
-### Using Magic Association Methods
+* but if you do include something which is unlikely to change very often, like the username for example,well then you could certainly go ahead and embed that together with the ID so that you always have that ID to fetch more data about the user if you need to,
 
-* From now on all new products that are created should be associated to the currently logged in user.
+* you've got to find by the method in the user model after all or that you have at least some snapshot data like the username available immediately, if that should change, you need to update it everywhere.
 
-* oneway is we could pass this user id as part of reqest data .. something like below
-```js
-Product.create({
-    title: title,
-    price: price,
-    imageUrl: imageUrl,
-    description: description,
-    // here...
-    userId: req.user.id
-  }).then(response => {
-    console.log(response);
-    res.redirect('/admin/products');
-  }).catch(err => {
-    console.log(err);
-  })
-```
-* But we can do this in more eligant way by using sequlize method like below
-```js
+* The alternative to this is that you just store the ID, so just a reference and therefore if you need connected data, you always have to fetch it manually from two collections
 
-```
-* create product method. Now where is that coming from?
-
-* sequelize add special methods depending on the association you added and for a belongs to has many association as we did
-
-* for example to create a new associated object. So since a user has many products or a product belongs to a user as we learned or as we set it up in app.js
-
-* since we have that relation defined, sequelize automatically adds a create product method to the user. Create product because our model is named product and create is then automatically added at the beginning of the method name,that is some magic done by sequelize.
+* we should actually store the user ID when creating a new product.
 
 ```js
-exports.postAddProduct = (req, res, next) => {
-  const title = req.body.title;
-  const imageUrl = req.body.imageUrl;
-  const price = req.body.price;
-  const description = req.body.description;
-  // Here we used sequlize helper function createProduct... this will update foreign key in product table
-  req.user.createProduct({
-    title: title,
-    price: price,
-    imageUrl: imageUrl,
-    description: description
-  }).then(response => {
-    console.log(response);
-    res.redirect('/admin/products');
-  }).catch(err => {
-    console.log(err);
-  })
-};
-```
-### Fetching Related Products
-
-* Since user details added to the table we have to fetch product details using both user id and product id 
-
-```js
-exports.getEditProduct = (req, res, next) => {
-  const editMode = req.query.edit;
-  if(!JSON.parse(editMode)){
-    return res.redirect('/');
+constructor(title, price, description, imageUrl, id, userId) {
+    this.title = title;
+    this.price = price;
+    this.description = description;
+    this.imageUrl = imageUrl;
+    this._id = id ? new mongodb.ObjectId(id) : null;
+    this.userId = userId;
   }
-  const prodId = req.params.productId;
-  // here we used sequlize helper method to fetch product using userid and product id
-  req.user.getProducts({where: {id: prodId}})
-  .then(products => {
-    const product = products[0]
-    if(!product){
-      return res.redirect('/');
+
+```
+* Now from add product we need to pass this userid 
+
+```js
+const product = new Product(
+    title,
+    price,
+    description,
+    imageUrl,
+    null,
+    req.user._id
+  );
+  product
+    .save()
+
+// cosole.log - product document
+_id:5dd0cfb09cadaaa136c3d660
+title:"asdasdasd"
+price:"1212"
+description:"sdszdszd"
+imageUrl:"http://dfdcxz"
+userId:5dd0bd381c9d440000906f42
+```
+### Working on Cart Items & Orders
+
+* So let me start with the cart model, now what is, what's the overall goal we have here?
+
+* Well obviously for every user ,we want to store a cart right and that user will have a cart and that cart will then hold the products. 
+
+* this is a great place for embedded documents because we have a strict one-to-one relation between a user and a cart and therefore there is no need to manage this with a reference,
+
+* I could actually get rid of my cart items, my cart model so that I just have product and usernand for now, also the orders and now on the user model, there I also want to store my cart items also.
+
+* In users model add addToCart method 
+```js
+const mongodb = require('mongodb');
+const getDb = require('../util/database').getDb;
+
+const ObjectId = mongodb.ObjectId;
+
+class User {
+  // Here we imported cart and id of the user 
+    constructor(username, email, cart, id) {
+        this.name = username;
+        this.email = email;
+        // here we added cart items as array of objects...like below example
+        this.cart = cart; // {items: []}
+        this._id = id;
     }
-    res.render('admin/edit-product', {
-      product: product,
-      pageTitle: 'Edit Product',
-      path: '/admin/edit-product',
-      editing: editMode
-    });
-  }).catch(err => {
-    console.log(err);
-  });
-};
-```
-* The above code will execute the below query
 
-```js
- SELECT `id`, `title`, `price`, `imageUrl`, `description`, `createdAt`, `updatedAt`, `userId` FROM `products` AS `product` WHERE (`product`.`userId` = 1 AND `product`.`id` = '1');
-```
-* We have to update the other methods also the same way like fetchAll products..
-```js
-exports.getProducts = (req, res, next) => {
-  req.user.getProducts().then(products => {
-    res.render('admin/products', {
-      prods: products,
-      pageTitle: 'Admin Products',
-      path: '/admin/products'
-    });
-  }).catch(err =>{
-    console.log(err);
-  });
-};
-```
-### One-To-Many & Many-To-Many Relations
-
-* Now from a relation or association perspective, a cart should belong to a user and a cart that in turn simply holds products, many products with a quantity associated to them.
-
-* Lets add cart model
-
-```js
-const Sequelize = require('sequelize');
-
-const sequelize = require('../util/database');
-// Here we defining CartItem with cart id alone
-const Cart = sequelize.define('cart', {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true
-  }
-});
-
-module.exports = Cart;
-
-```
-* Now you might be wondering where are the products?
-
-* we have to keep in mind that a cart should belong to a single user but may hold multiple products.
-
-* The carts table however should hold the different carts for the different users, so we'll not just need the carts table and model, we'll also need a new cart-item.js model
-```js
-const Sequelize = require('sequelize');
-
-const sequelize = require('../util/database');
-// Here we defining CartItem with primary id and qty
-// Details of the product id we will add from association like we did for user
-const CartItem = sequelize.define('cartItem', {
-    id: {
-        type: Sequelize.INTEGER,
-        autoIncrement: true,
-        allowNull: false,
-        primaryKey: true
-    },
-    quantity: Sequelize.INTEGER
-});
-
-module.exports = CartItem;
-```
-* Details of the product id we will add from association like we did for user
-
-* Now its time to add more associations besides products and user.
-
-```js
-const Product = require('./models/product');
-const User = require('./models/user');
-const Cart = require('./models/cart');
-const CartItem = require('./models/cart-item');
-
-Product.belongsTo(User, { constraints: true, onDelete: 'CASCADE' });
-User.hasMany(Product);
-
-//This setup below, either of the two approaches will add a key to the cart, a new field to the cart which is the user id to which the cart belongs.
-User.hasOne(Cart);
-Cart.belongsTo(User);
-// here { through: CartItem } telling sequelize where these connection should be stored and that is  cartitem model,
-Cart.belongsToMany(Product, { through: CartItem });
-```
-### Creating & Fetching a Cart
-
-* Just like create dummy user we will create cart for the user.
-
-```js
-sequelizeConnector
-    .sync()
-    .then(result => {
-        return User.findByPk(1);
-    })
-    .then(user => {
-        if (!user) {
-            return User.create({ name: 'Max', email: 'test@test.com' });
+    save() {
+        const db = getDb();
+        return db.collection('users').insertOne(this);
         }
-        return user;
-    })
-    .then(user => {
-      // Just like user creation..
-        return user.createCart();
-    }).then(user => {
-        app.listen(8000);
-    })
-    .catch(err => {
-        console.log(err);
-    });
+  // Here we added new addToCart function to manage cart details.
+    addToCart(product) {
+         const updatedCart = {
+            items: [{...product, quantity: 1}]
+        };
+        const db = getDb();
+        return db
+            .collection('users')
+            .updateOne(
+            { _id: new ObjectId(this._id) },
+            { $set: { cart: updatedCart } }
+            );
+    }
+
+    static findById(userId) {
+        const db = getDb();
+        return db
+            .collection('users')
+            .findOne({ _id: new ObjectId(userId) })
+            .then(user => {
+            console.log(user);
+            return user;
+            })
+            .catch(err => {
+            console.log(err);
+            });
+    }
+}
+
+module.exports = User;
+
 ```
-* I don't need to pass any data in there because cart in the beginning will not hold any special data.
 
-* we can't access cart as a property "req.user,cart", but we can access using getCartMethod
+### Adding the "Add to Cart" Functionality in app.js
 
-* we can use it to fetch the products that are inside of it by returning carts get products.
+* user I'm getting here is data I'm getting out of the database and the methods aren't stored there, they couldn't be stored there
 
 ```js
-exports.getCart = (req, res, next) => {
-  req.user.getCart()
-  .then(cart =>{
-    console.log(cart);
-    // This was added by sequlize as magic method..
-    return cart.getProducts().then(products => {
-      res.render('shop/cart', {
-              products: products,
-              pageTitle: 'Your Cart',
-              path: '/cart'
-            });
+app.use((req, res, next) => {
+  User.findById('5baa2528563f16379fc8a610')
+    .then(user => {
+      // So to have a real user object with which we can interact, I should actually create a new user here and then simply pass like below
+      req.user = new User(user.name, user.email, user.cart, user._id);
+      next();
     })
-  }).catch(err => {
-      console.log(err);
-  });
-};
-// the above code will output below query
-SELECT `product`.`id`, `product`.`title`, `product`.`price`, `product`.`imageUrl`, `product`.`description`, `product`.`createdAt`, `product`.`updatedAt`, `product`.`userId`, `cartItem`.`id` AS `cartItem.id`, `cartItem`.`quantity` AS `cartItem.quantity`, `cartItem`.`createdAt` AS `cartItem.createdAt`, `cartItem`.`updatedAt` AS `cartItem.updatedAt`, `cartItem`.`cartId` AS `cartItem.cartId`, `cartItem`.`productId` AS `cartItem.productId` FROM `products` AS `product` INNER JOIN `cartItems` AS `cartItem` ON `product`.`id` = `cartItem`.`productId` AND `cartItem`.`cartId` = 1;
+    .catch(err => console.log(err));
+});
 ```
-### Adding New Products to the Cart
+* user I'm getting here is data I'm getting out of the database and the methods aren't stored there,they couldn't be stored there.
 
-* we need to work on add card method
+* So to have a real user object with which we can interact, I should actually create a new user here and then simply pass user.name which is my username, how it's a stored, user email, user cart and user_id,
 
-*  here add product is another magic method added by sequlize for many to many relationship
+* With the above change we could able to access method in our controller..
 
 ```js
 exports.addToCart = (req, res, next) => {
   const prodId = req.body.productId;
-  let fetchedCart;
-  let newQuantity = 1;
+  Product.findById(prodId)
+    .then(product => {
+      return req.user.addToCart(product);
+    })
+    .then(result => {
+      console.log(result);
+    });
+}
+
+
+```
+* Make sure we enabled corresponding routes in shop.js routes
+
+* We have duplicate data here,we have the same product here as an embedded document and we have it in products. (Refer Mongo cloud user image - Cart item has the whole product details..)
+
+* So this is maybe something which we should change because if we change the product right now, if we
+
+* change the title or the price, this will not be reflected in the cart and in the cart
+
+* we should have correct data because if the price changes, we can show the wrong price in our cart,right.
+
+* I actually don't want to store all product data in this object
+and then the quantity,I just want to store the product ID
+
+```js
+ addToCart(product) {
+   // Instead of whole product details document here we are just  updating product id alone..
+        const updatedCart = {
+            items: [{productId: new ObjectId(product._id), quantity: 1}]
+        };
+        const db = getDb();
+        return db
+            .collection('users')
+            .updateOne(
+            { _id: new ObjectId(this._id) },
+            { $set: { cart: updatedCart } }
+            );
+    }
+```
+### Storing Multiple Products in the Cart
+
+```js
+addToCart(product) {
+        const cartProductIndex = this.cart.items.findIndex(cp => {
+            return cp.productId.toString() === product._id.toString();
+        });
+        let newQuantity = 1;
+        const updatedCartItems = [...this.cart.items];
+    
+        if (cartProductIndex >= 0) {
+            newQuantity = this.cart.items[cartProductIndex].quantity + 1;
+            updatedCartItems[cartProductIndex].quantity = newQuantity;
+        } else {
+            updatedCartItems.push({
+            productId: new ObjectId(product._id),
+            quantity: newQuantity
+            });
+        }
+        const updatedCart = {
+            items: updatedCartItems
+        };
+        const db = getDb();
+        return db
+            .collection('users')
+            .updateOne(
+            { _id: new ObjectId(this._id) },
+            { $set: { cart: updatedCart } }
+            );
+    }
+    // CONSOLE LOG
+
+    _id:5dd0bd381c9d440000906f42
+    name:"Guna"
+    email:"reachtoguna@gmail.com"
+    cart:Object 
+      items :Array 
+        0 :Object
+          productId:5dd0cfb09cadaaa136c3d660
+          quantity:2
+        1:Object
+          productId:W453455E6R67T878ER45
+          quantity:1
+```
+### Displaying the Cart Items
+*  I want to find all products that are in my cart.Now how can I do that? Well for this, we can use a special query syntax mongodb supports $in 
+
+*  I'm not looking for a single ID am looking for array of ids.
+
+* $in operator. And this operator takes an array of IDs and therefore every ID which is in the array will be accepted and will get back a cursor which holds references to all products with one of the IDs mentioned in this array.
+
+* now I'll again use toArray to quickly get that converted to a javascript array 
+
+```js
+getCart() {
+    const db = getDb();
+    const productIds = this.cart.items.map(i => {
+        return i.productId;
+    });
+    return db
+        .collection('products')
+        .find({ _id: { $in: productIds } })
+        .toArray()
+        .then(products => {
+        return products.map(p => {
+            return {
+            ...p,
+            quantity: this.cart.items.find(i => {
+                          return i.productId.toString() === p._id.toString();
+                      }).quantity
+            };
+        });
+        });
+    }
+```
+* We have to corresponding changes in the controller.. 
+
+```js
+exports.getCart = (req, res, next) => {
   req.user
     .getCart()
-    .then(cart => {
-      fetchedCart = cart;
-      return cart.getProducts({ where: { id: prodId } });
-    })
     .then(products => {
-      // If product exist...
-      let product;
-      if (products.length > 0) {
-        product = products[0];
-      }
-
-      if (product) {
-        const oldQuantity = product.cartItem.quantity;
-        newQuantity = oldQuantity + 1;
-        return product;
-      }
-      return Product.findByPk(prodId);
-    })
-    .then(product => {
-      // If new product...
-      // here add product is another magic method added by sequlize for many to many relationship
-      // I can add a single product here and I will add it to this in-between table with its ID.
-      // So here I add the product I retrieved,
-      return fetchedCart.addProduct(product, {
-        // I just need to also make sure that I set this extra field I added to my cart item, this is the in-between table
-        // FYI Cart.belongsToMany(Product, { through: CartItem }); // refer app.js
-        through: { quantity: newQuantity }
+      res.render('shop/cart', {
+        path: '/cart',
+        pageTitle: 'Your Cart',
+        products: products
       });
-    })
-    .then(() => {
-      res.redirect('/cart');
     })
     .catch(err => console.log(err));
 };
 ```
-### Deleting Related Items & Deleting Cart Products
+
+* Now we have data lets make sure our template aligned propely with the data
+
+```js
+<%- include('../includes/head.ejs') %>
+    <link rel="stylesheet" href="/css/cart.css">
+    </head>
+
+    <body>
+        <%- include('../includes/navigation.ejs') %>
+        <main>
+            <% if (products.length > 0) { %>
+                <ul class="cart__item-list">
+                    <% products.forEach(p => { %>
+                        <li class="cart__item">
+                            <h1><%= p.title %></h1>
+                            <h2>Quantity: <%= p.quantity %></h2>
+                            <form action="/cart-delete-item" method="POST">
+                                <input type="hidden" value="<%= p._id %>" name="productId">
+                                <button class="btn danger" type="submit">Delete</button>
+                            </form>
+                        </li>
+                    <% }) %>
+                </ul>
+                <hr>
+                <div class="centered">
+                    <form action="/create-order" method="POST">
+                        <button type="submit" class="btn">Order Now!</button>
+                    </form>
+                </div>
+                
+            <% } else { %>
+                <h1>No Products in Cart!</h1>
+            <% } %>
+        </main>
+        <%- include('../includes/end.ejs') %>
+```
+
+### Delete cart product
+* Model logic
+
+```js
+deleteItemFromCart(productId) {
+        const updatedCartItems = this.cart.items.filter(item => {
+            return item.productId.toString() !== productId.toString();
+        });
+        const db = getDb();
+        return db
+            .collection('users')
+            .updateOne(
+            { _id: new ObjectId(this._id) },
+            { $set: { cart: {items: updatedCartItems} } }
+            );
+    }
+```
+
+* Controller logic 
 
 ```js
 exports.postCartDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
   req.user
-    .getCart()
-    .then(cart => {
-      return cart.getProducts({ where: { id: prodId } });
-    })
-    .then(products => {
-      const product = products[0];
-      return product.cartItem.destroy();
-    })
+    .deleteItemFromCart(prodId)
     .then(result => {
       res.redirect('/cart');
     })
     .catch(err => console.log(err));
 };
 ```
-### Adding an Order Model
+### Adding an Order
 
-* Well an order is in the end just an in-between table between a user to which the order belongs and then multiple products that are part of the order
-
+* Model logic
 ```js
-const Sequelize = require('sequelize');
-
-const sequelize = require('../util/database');
-
-const Order = sequelize.define('order', {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true
-  }
-});
-
-module.exports = Order;
+addOrder() {
+  // this.cart ==> { items: [ { productId: 5dd0cfb09cadaaa136c3d660, quantity: 1 } ] } refer add to cart..
+        const db = getDb();
+            return db.collection('orders').insertOne(this.cart);
+            .then(result => {
+            this.cart = { items: [] };
+            return db
+                .collection('users')
+                .updateOne(
+                { _id: new ObjectId(this._id) },
+                { $set: { cart: { items: [] } } }
+                );
+            });
+    }
 ```
-* Then we will have order quantity in order item model
-
-```js
-const Sequelize = require('sequelize');
-
-const sequelize = require('../util/database');
-
-const OrderItem = sequelize.define('orderItem', {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    allowNull: false,
-    primaryKey: true
-  },
-  quantity: Sequelize.INTEGER
-});
-
-module.exports = OrderItem;
-
-```
-* Now we have to connect these order and order item
-
-```js
-Order.belongsTo(User);
-User.hasMany(Order);
-Order.belongsToMany(Product, { through: OrderItem });
-```
-### Storing Cartitems as Orderitems
-
-```js
-<hr>
-  <div class="centered">
-      <form action="/create-order" method="POST">
-          <button type="submit" class="btn">Order Now!</button>
-      </form>
-  </div>
-```
-* Lets add order routes
-
-```js
-router.post('/create-order', shopController.postOrder);
-```
-
-* Lets add logic for post order controller
+* Controller logic
 
 ```js
 exports.postOrder = (req, res, next) => {
-  let fetchedCart;
   req.user
-    .getCart()
-    .then(cart => {
-      fetchedCart = cart;
-      return cart.getProducts();
-    })
-    .then(products => {
-      // Just like create cart lets create order magic method
-      return req.user
-        .createOrder()
-        // Executing (default): CREATE TABLE IF NOT EXISTS `orderItems` (`id` INTEGER NOT NULL auto_increment , `quantity` INTEGER, `createdAt` DATETIME NOT NULL, `updatedAt` DATETIME NOT NULL, `orderId` INTEGER, `productId` INTEGER, UNIQUE `orderItems_orderId_productId_unique` (`orderId`, `productId`), PRIMARY KEY (`id`), FOREIGN KEY (`orderId`) REFERENCES `orders` (`id`) ON DELETE CASCADE ON UPDATE CASCADE, FOREIGN KEY (`productId`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB;
-        .then(order => {
-        // Now this gives us an order but we don't just need the order, we also need to associate our products to that order,
-          return order.addProducts(
-            products.map(product => {
-              // orderItem which is fetched from orderItem model
-              product.orderItem = { quantity: product.cartItem.quantity };
-              return product;
-            })
-          );
-        })
-        .catch(err => console.log(err));
-    })
-    .then(result => {
-      // Here we are dropping cart details since we pushing all our data to order details
-      return fetchedCart.setProducts(null);
-    })
+    .addOrder()
     .then(result => {
       res.redirect('/orders');
     })
     .catch(err => console.log(err));
 };
+
 ```
-### Resetting the Cart & Fetching and Outputting Orders
+### Adding Relational Order Data
+
+* In orders collection we also need user details and product details with the cart details.
 
 ```js
-exports.getOrders = (req, res, next) => {
+addOrder() {
+        const db = getDb();
+        return this.getCart()
+            .then(products => {
+            const order = {
+                items: products,
+                user: {
+                _id: new ObjectId(this._id),
+                name: this.name
+                }
+            };
+            return db.collection('orders').insertOne(order);
+            })
+            .then(result => {
+            this.cart = { items: [] };
+            return db
+                .collection('users')
+                .updateOne(
+                { _id: new ObjectId(this._id) },
+                { $set: { cart: { items: [] } } }
+                );
+            });
+    }
+```
+
+### Getting Orders
+* In orders collection each user object has user id we need compare that with the current user.
+
+* the only important thing to know here is that you need to use quotation marks around the path and then you can say check user and then the ID for the user.
+
+* You do that by specifying user._id and this will look for _id in the user property which holds an embedded document
+
+```js
+//user model
+  getOrders() {
+      const db = getDb();
+      return db
+              .collection('orders')
+              .find({'user._id': new ObjectId(this._id)})
+              .toArray()
+  }
+```
+
+* controller Logic
+
+```js
+exports.getOrdersList = (req, res, next) => {
   req.user
-  // if we want to fetch related products of orders.. we need to include that ..
-    .getOrders({include: ['products']})
+    .getOrders()
     .then(orders => {
       res.render('shop/orders', {
         path: '/orders',
@@ -803,31 +994,19 @@ exports.getOrders = (req, res, next) => {
     .catch(err => console.log(err));
 };
 ```
-* corresponding template for orders..
+### Removing Deleted Items From the Cart
 
-```js
-<%- include('../includes/head.ejs') %>
-    </head>
+* If we delete a product the corresponding item added in the cart also should delete right product id in cart.. but how would you solve this?
 
-    <body>
-        <%- include('../includes/navigation.ejs') %>
-        <main>
-            <% if (orders.length <= 0) { %>
-                <h1>Nothing there!</h1>
-            <% } else { %>
-                <ul>
-                    <% orders.forEach(order => { %>
-                        <li>
-                            <h1># <%= order.id %></h1>
-                            <ul>
-                                <% order.products.forEach(product => { %>
-                                    <li><%= product.title %> (<%= product.orderItem.quantity %>)</li>
-                                <% }); %>
-                            </ul>
-                        </li>
-                    <% }); %>
-                </ul>
-            <% } %>
-        </main>
-        <%- include('../includes/end.ejs') %>
-```
+* one approach that would makes sense is that you add some kind of worker process (CRON). which is something a bit more advanced and not directly related to building web applications with node,
+
+* when you're calling get cart on the user and you know that there are cart items on the user object and still the products you get back is empty, then you know there's a mismatch between what you have in your cart and what's in the database and in such a case, you could then issue some behind the scenes request
+
+* so basically with exactly the tools you learned about to update the cart of that user to match the product you got back from the database. So if you got an empty product array and you have items in the cart, you want to reset your cart.
+
+* If you've got less items in the data you get back from the database then that's in your cart, you want to find out what the difference is and then update your cart accordingly.
+
+## MONGODB END - MONGOOSE STARTED..:-)
+
+
+

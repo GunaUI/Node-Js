@@ -1,7 +1,7 @@
 const Product = require('../models/product');
 
 exports.getProducts = (req, res, next) => {
-  req.user.getProducts().then(products=>{
+  Product.fetchAll().then(products=>{
     res.render('shop/product-list', {
       prods: products,
       pageTitle: 'All Products',
@@ -16,7 +16,7 @@ exports.getProducts = (req, res, next) => {
 
 exports.getProductDetails = (req, res, next) => {
     const prodId = req.params.productId;
-    req.user.getProducts({where: {id : prodId}}) .then((product) => {
+    Product.findById(prodId).then((product) => {
       res.render('shop/product-detail', {
         product: product[0],
         pageTitle: product[0].title,
@@ -39,7 +39,7 @@ exports.getProductDetails = (req, res, next) => {
 };
 
 exports.getIndex = (req, res, next) => {
-  req.user.getProducts().then(products =>{
+  Product.fetchAll().then(products =>{
     res.render('shop/index', {
       prods: products,
       pageTitle: 'Shop',
@@ -52,99 +52,43 @@ exports.getIndex = (req, res, next) => {
 };
 
 exports.getCart = (req, res, next) => {
-  // Cart.fetchAllCart(cart => {
-  //   console.log(cart);
-  //   Product.fetchAll(products => {
-  //     const cartProducts = [];
-  //     for (product of products){
-  //       const cartProductData = cart.products.find(
-  //         prod => prod.id === product.id
-  //       );
-  //       if (cartProductData) {
-  //         cartProducts.push({ productData: product, qty: cartProductData.qty });
-  //       }
-  //     }
-  //     res.render('shop/cart', {
-  //       products: cartProducts,
-  //       pageTitle: 'Your Cart',
-  //       path: '/cart'
-  //     });
-  //   });
-  // });
-
-  req.user.getCart().then(cart =>{
-    console.log(cart);
-    return cart.getProducts().then(products => {
+  req.user
+    .getCart()
+    .then(products => {
       res.render('shop/cart', {
-              products: products,
-              pageTitle: 'Your Cart',
-              path: '/cart'
-            });
+        path: '/cart',
+        pageTitle: 'Your Cart',
+        products: products
+      });
     })
-  }).catch(err =>{
-    console.log(err);
-  });
+    .catch(err => console.log(err));
 };
 
 exports.addToCart = (req, res, next) => {
   const prodId = req.body.productId;
-  let fetchedCart;
-  let newQuantity = 1;
-  req.user
-    .getCart()
-    .then(cart => {
-      fetchedCart = cart;
-      return cart.getProducts({ where: { id: prodId } });
-    })
-    .then(products => {
-      let product;
-      if (products.length > 0) {
-        product = products[0];
-      }
-
-      if (product) {
-        const oldQuantity = product.cartItem.quantity;
-        newQuantity = oldQuantity + 1;
-        return product;
-      }
-      return Product.findByPk(prodId);
-    })
+  Product.findById(prodId)
     .then(product => {
-      // here add product is another magic method added by sequlize for many to many relationship
-      // I can add a single product here and I will add it to this in-between table with its ID.
-      // So here I add the product I retrieved,
-      return fetchedCart.addProduct(product, {
-        // I just need to also make sure that I set this extra field I added to my cart item, this is the in-between table
-        // FYI Cart.belongsToMany(Product, { through: CartItem }); // refer app.js
-        through: { quantity: newQuantity }
-      });
-    })
-    .then(() => {
+      req.user.addToCart(product);
       res.redirect('/cart');
     })
-    .catch(err => console.log(err));
+    .then(result => {
+      console.log(result);
+    });
 };
 
 exports.postCartDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
   req.user
-    .getCart()
-    .then(cart => {
-      return cart.getProducts({ where: { id: prodId } });
-    })
-    .then(products => {
-      const product = products[0];
-      return product.cartItem.destroy();
-    })
+    .deleteItemFromCart(prodId)
     .then(result => {
       res.redirect('/cart');
     })
     .catch(err => console.log(err));
 };
 
-exports.getOrders = (req, res, next) => {
+exports.getOrdersList = (req, res, next) => {
   req.user
-    .getOrders({include: ['products']})
+    .getOrders()
     .then(orders => {
       res.render('shop/orders', {
         path: '/orders',
@@ -163,29 +107,8 @@ exports.getOrders = (req, res, next) => {
 // };
 
 exports.postOrder = (req, res, next) => {
-  let fetchedCart;
   req.user
-    .getCart()
-    .then(cart => {
-      fetchedCart = cart;
-      return cart.getProducts();
-    })
-    .then(products => {
-      return req.user
-        .createOrder()
-        .then(order => {
-          return order.addProducts(
-            products.map(product => {
-              product.orderItem = { quantity: product.cartItem.quantity };
-              return product;
-            })
-          );
-        })
-        .catch(err => console.log(err));
-    })
-    .then(result => {
-      return fetchedCart.setProducts(null);
-    })
+    .addOrder()
     .then(result => {
       res.redirect('/orders');
     })

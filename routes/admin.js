@@ -9,7 +9,7 @@ const router = express.Router();
 // /admin/add-product => GET
 router.get('/add-product', adminController.getAddProduct);
 
-// /admin/edit-product => GET
+// // /admin/edit-product => GET
 router.get('/edit-product/:productId', adminController.getEditProduct);
 
 
