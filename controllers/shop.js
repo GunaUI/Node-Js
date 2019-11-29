@@ -1,7 +1,8 @@
 const Product = require('../models/product');
+const OrderObj = require('../models/order');
 
 exports.getProducts = (req, res, next) => {
-  Product.fetchAll().then(products=>{
+  Product.find().then(products=>{
     res.render('shop/product-list', {
       prods: products,
       pageTitle: 'All Products',
@@ -18,28 +19,17 @@ exports.getProductDetails = (req, res, next) => {
     const prodId = req.params.productId;
     Product.findById(prodId).then((product) => {
       res.render('shop/product-detail', {
-        product: product[0],
-        pageTitle: product[0].title,
+        product: product,
+        pageTitle: product.title,
         path: '/products'
       });
     }).catch(err =>{
       console.log(err);
     });
-
-    // Product.findByPk(prodId)
-    //       .then((product) => {
-    //         res.render('shop/product-detail', {
-    //           product: product,
-    //           pageTitle: product.title,
-    //           path: '/products'
-    //         });
-    //       }).catch(err =>{
-    //         console.log(err);
-    //       });
 };
 
 exports.getIndex = (req, res, next) => {
-  Product.fetchAll().then(products =>{
+  Product.find().then(products =>{
     res.render('shop/index', {
       prods: products,
       pageTitle: 'Shop',
@@ -52,13 +42,16 @@ exports.getIndex = (req, res, next) => {
 };
 
 exports.getCart = (req, res, next) => {
+  // populate does not return a promise, so calling then on it would not work we have to chain execPopulate() after that and then we'll get a promise,
   req.user
-    .getCart()
-    .then(products => {
+    .populate('cart.items.productId')
+    .execPopulate()
+    .then(user => {
+      console.log(user.cart.items);
       res.render('shop/cart', {
         path: '/cart',
         pageTitle: 'Your Cart',
-        products: products
+        products: user.cart.items
       });
     })
     .catch(err => console.log(err));
@@ -87,8 +80,7 @@ exports.postCartDeleteProduct = (req, res, next) => {
 };
 
 exports.getOrdersList = (req, res, next) => {
-  req.user
-    .getOrders()
+  OrderObj.find({"user.userId" : req.user})
     .then(orders => {
       res.render('shop/orders', {
         path: '/orders',
@@ -108,8 +100,27 @@ exports.getOrdersList = (req, res, next) => {
 
 exports.postOrder = (req, res, next) => {
   req.user
-    .addOrder()
+    .populate('cart.items.productId')
+    .execPopulate()
+    .then(user => {
+      const product = user.cart.items.map(i =>{
+        //return {quantity: i.quantity, product: i.productId}
+        return {quantity: i.quantity, product: { ...i.productId._doc }}
+      })
+      const orderData = new OrderObj({
+        products: product,
+        user : {
+          name: req.user.name,
+          // As we already see mongoose will pick id from this object
+          userId: req.user
+        }
+      })
+      return orderData.save();
+    })
     .then(result => {
+      return req.user.clearCart()
+    })
+    .then(() => {
       res.redirect('/orders');
     })
     .catch(err => console.log(err));
