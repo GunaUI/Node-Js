@@ -1,291 +1,502 @@
 # Node-Js
 
-## Advanced Authentication
+## Understanding Validation
 
-### Resetting Passwords
+* Refer Validation image
+* Express-Validator Docs: https://express-validator.github.io/docs/
+* Validator.js (which is used behind the scenes) Docs: https://github.com/chriso/validator.js
 
-* If people forget password we should offer them resetting them.
+### Setup & Basic Validation
 
 ```js
-// reset view
-<%- include('../includes/head.ejs') %>
-    <link rel="stylesheet" href="/css/forms.css">
-    <link rel="stylesheet" href="/css/auth.css">
-</head>
+npm install --save express-validator
+```
+* we are going to validate (POST) login and signup data
 
-<body>
-<%- include('../includes/navigation.ejs') %>
+* Email Validation
 
-    <main>
-        <% if (errorMessage) { %>
-            <div class="user-message user-message--error"><%= errorMessage %></div>
-        <% } %>
-        <form class="login-form" action="/reset" method="POST">
+```js
+const { check } = require('express-validator');
+const authController = require('../controllers/auth');
+...
+...
+// this can be either string or array of string
+router.post('/signup', check('email').isEmail().withMessage('Please enter a valid Email.'), authController.postSignup);
+```
+
+* In controller postSignuo validate the result and redirect
+
+```js
+// validationResult will be a function which allow us to gather all the error
+const { validationResult } = require('express-validator');
+
+exports.postSignup = (req, res, next) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  const confirmPassword = req.body.confirmPassword;
+
+  // Validations changes here..
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    console.log(errors.array());
+    // 422 - common status code to indicate the validation failed.
+    return res.status(422).render('auth/signup', {
+      path: '/signup',
+      pageTitle: 'Signup',
+      // since error is array object ......
+      errorMessage: errors.array()[0].msg
+    });
+  }
+
+  User.findOne({ email: email })
+    .then(userDoc => {
+      if (userDoc) {
+        req.flash(
+          'error',
+          'E-Mail exists already, please pick a different one.'
+        );
+        return res.redirect('/signup');
+      }
+      return bcrypt
+        .hash(password, 12)
+        .then(hashedPassword => {
+          const user = new User({
+            email: email,
+            password: hashedPassword,
+            cart: { items: [] }
+          });
+          return user.save();
+        })
+        .then(result => {
+          res.redirect('/login');
+          return transporter.sendMail({
+            to: email,
+            from: 'shop@node-complete.com',
+            subject: 'Signup succeeded!',
+            html: '<h1>You successfully signed up!</h1>'
+          });
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    })
+    .catch(err => {
+      console.log(err);
+    });
+};
+```
+### Built-In & Custom Validators
+
+* You can also add your own validator though
+
+* let's say we're not just using isEmail,I also want to make sure it's a specific e-mail I want to have. For that I can add custom here 
+
+```js
+router.post('/signup', check('email')
+                        .isEmail()
+                        .withMessage('Please enter a valid Email.')
+                        .custom((value, {req}) => {
+                            // Here we will add our validation logic 
+                            if(value === 'test@test.com'){
+                                throw new Error('This email is forbidden.');
+                            }
+                            // if valid we will return true
+                            return true;
+                        }),
+                        authController.postSignup);
+```
+* how you can use the many built-in ones ? and of course that you can chain them after each other to add multiple validators to one and the same field.
+
+### More Validators
+
+```js
+const { check, body } = require('express-validator');
+
+router.post('/signup', [
+                        check('email')
+                        .isEmail()
+                        .withMessage('Please enter a valid Email.')
+                        .custom((value, {req}) => {
+                            if(value === 'test@test.com'){
+                                throw new Error('This email is forbidden.');
+                            }
+                            return true;
+                        }),
+                        // body just an alternative we could ise check also
+                        // if you want to add default error message for all validation of the element
+                        body('password',
+                        'Please enter value with only with number and text , Atlest min 3 characters '
+                        )
+                        .isLength({min: 3, max: 5})
+                        .isAlphanumeric()
+                        ],
+                        authController.postSignup);
+```
+### Checking For Field Equality
+
+```js
+
+router.post('/signup', [
+                            check('email')
+                            .isEmail()
+                            .withMessage('Please enter a valid Email.')
+                            .custom((value, {req}) => {
+                                if(value === 'test@test.com'){
+                                    throw new Error('This email is forbidden.');
+                                }
+                                return true;
+                            }),
+
+                            // body just an alternative we could ise check also
+                            // if you want to add default error message for all validation of the element
+                            body('password',
+                            'Please enter value with only with number and text , Atlest min 3 characters '
+                            )
+                            .isLength({min: 3, max: 5})
+                            .isAlphanumeric(),
+
+                            // Confirm password validation
+                            body('confirmPassword')
+                            .custom((value, {req}) => {
+                                if(value !== req.body.password){
+                                    throw new Error('Passwords have to match');
+                                }
+                                return true;
+                            })
+                        ],
+                        authController.postSignup);
+```
+
+### Adding Async Validation
+
+* As of now we are checking email existance after validation but it should be part of our validation.
+
+```js
+const UserModel = require('../models/user');
+
+router.post('/signup', [check('email')
+                        .isEmail()
+                        .withMessage('Please enter a valid Email.')
+                        .custom((value, {req}) => {
+                            // Async Validation here..
+                            return UserModel.findOne({ email: value })
+                                    .then(userDoc => {
+                                        if (userDoc) {
+                                        // A promise is a built-in javascript object and with reject, 
+                                        // I basically throw an error inside of the promise and I reject with this error message I used before
+                                            return Promise.reject('Email exist already, Please pick a different one')
+                                        }
+                                    })
+                        }),
+                    ....
+                    ....
+                    ],
+                        authController.postSignup);
+```
+
+* Since we handled email existence in router itself let us let us remove those logic from controller 
+
+```js
+exports.postSignup = (req, res, next) => {
+    const email = req.body.email;
+    const password = req.body.password;
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+    console.log(errors.array());
+    return res.status(422).render('auth/signup', {
+        path: '/signup',
+        pageTitle: 'Signup',
+        errorMessage: errors.array()[0].msg
+    });
+    }
+    
+    return bcrypt.hash(password, 12)
+                .then(hashedPassword => {
+                    const user = new User({
+                        email: email,
+                        password: hashedPassword,
+                        cart: { items: [] }
+                    });
+                    return user.save();
+                })
+                .then(result => {
+                    res.redirect('/login');
+                    return transporter.sendMail({
+                        to : email,
+                        from : 'node@learning.com',
+                        subject: 'Signup Succeeded!!',
+                        html : '<h1>You successfully integrated mail in node!!</h1>'
+                    }).catch(err => {
+                        console.log(err);
+                    });
+                    
+                })
+};
+```
+
+### Keeping User Input
+
+* If user entered value is worng value we are clearing the value, but we should retain the value even after error message.
+
+```js
+// auth controller signup action 
+return res.status(422).render('auth/signup', {
+        path: '/signup',
+        pageTitle: 'Signup',
+        errorMessage: errors.array()[0].msg,
+        // while redirecting we are sending back the password to the template from controller
+        oldInput : {email: email, password: password,  confirmPassword: req.body.confirmPassword}
+    });
+```
+
+* In template add these old input values
+
+```js
+<form class="login-form" action="/signup" method="POST" novalidate>
             <div class="form-control">
                 <label for="email">E-Mail</label>
-                <input type="email" name="email" id="email">
+                <input type="email" name="email" id="email" value="<%= oldInput.email %>">
             </div>
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button class="btn" type="submit">Reset Password</button>
-        </form>
-    </main>
-<%- include('../includes/end.ejs') %>
-```
-* In auth controller add reset function 
-
-```js
-exports.getReset = (req, res, next) => {
-    let message = req.flash('error');
-    if (message.length > 0) {
-        message = message[0];
-    } else {
-        message = null;
-    }
-    res.render('auth/reset', {
-        path: '/reset',
-        pageTitle: 'Reset Password',
-        errorMessage: message
-    });
-};
-```
-* Router for reset password
-
-```js
-router.get('/reset', authController.getReset);
-```
-* We need a link in to reset password page in login controller
-
-```js
-<div class="centered">
-    <a href="/reset">Reset Password</a>
-</div>
-```
-### Implementing the Token Logic
-
-* we need to first of all create a unique token that also has some expiry date which we will store in our database so that the link which we didn't click includes that token and we can verify that the user did get that link from us because if we just, well let the user now change that password, we got no security mechanism in place, so we need that token to put it into the email we're about to send to only let users change the password through the email that contains that token, that's an additional security mechanism.
-
-* Node js has build in crypto library , we can use this for generate token. This is a library that helps us with creating secure unique random values and other things but we'll need that unique secure random value here.
-
-```js
-exports.postReset = (req, res, next) => {
-// 32 randomBytes
-  crypto.randomBytes(32, (err, buffer) => {
-      // this is a call back once randomBytes done this will get called.
-    if (err) {
-      console.log(err);
-      return res.redirect('/reset');
-    }
-    //  we just need to pass hex because that buffer will store hexadecimal values and this is information toString needs to convert hexadecimal values to normal ASCII characters.
-    const token = buffer.toString('hex');
-
-    User.findOne({ email: req.body.email })
-      .then(user => {
-        if (!user) {
-          req.flash('error', 'No account with that email found.');
-          return res.redirect('/reset');
-        }
-        // if user found we have to save token and TokenExpiration in user db
-        user.resetToken = token;
-        // resetTokenExpiration today date + 1 hour in milli sec
-        user.resetTokenExpiration = Date.now() + 3600000;
-        return user.save();
-      })
-      .then(result => {
-        res.redirect('/');
-        // Mail sent to the user with the reset link
-        transporter.sendMail({
-          to: req.body.email,
-          from: 'node@learning.com',
-          subject: 'Password reset',
-          // 
-          html: `
-            <p>You requested a password reset</p>
-            <p>Click this <a href="http://localhost:8000/reset/${token}">link</a> to set a new password.</p>
-          `
-        });
-      })
-      .catch(err => {
-        console.log(err);
-      });
-  });
-};
-```
-* Make sure we have changes the user db schema with the restToken and resetTokenExpiry details
-
-```js
-const userSchema = new Schema({
-  email: {
-    type: String,
-    required: true
-  },
-  password: {
-    type: String,
-    required: true
-  },
-  // her we added resetToken and resetTokenExpiration Schema
-  resetToken: {
-    type: String,
-  },
-  resetTokenExpiration: {
-    type: Date,
-  },
-  cart: {
-    items: [
-      {
-        productId: {
-          type: Schema.Types.ObjectId,
-          ref: 'Product',
-          required: true
-        },
-        quantity: { type: Number, required: true }
-      }
-    ]
-  }
-});
-```
-* Make sure our newly addede resetpassword post controller reached through router
-
-```js
-router.post('/reset', authController.postReset);
-```
-* Now email will have a reset link with resetToken , now we have to fetch that token and let user to update their password.
-
-### Creating the Reset Password Form
-
-```js
-<%- include('../includes/head.ejs') %>
-    <link rel="stylesheet" href="/css/forms.css">
-    <link rel="stylesheet" href="/css/auth.css">
-</head>
-
-<body>
-<%- include('../includes/navigation.ejs') %>
-
-    <main>
-        <% if (errorMessage) { %>
-            <div class="user-message user-message--error"><%= errorMessage %></div>
-        <% } %>
-        <form class="login-form" action="/new-password" method="POST">
             <div class="form-control">
                 <label for="password">Password</label>
-                <input type="password" name="password" id="password">
+                <input type="password" name="password" id="password" value="<%= oldInput.password %>">
             </div>
-            // We will get this userId and passwordToken from controller action.
-            <input type="hidden" name="userId" value="<%= userId %>">
-            <input type="hidden" name="passwordToken" value="<%= passwordToken %>">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button class="btn" type="submit">Update Password</button>
+            <div class="form-control">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" name="confirmPassword" id="confirmPassword" value="<%= oldInput.confirmPassword %>">
+            </div>
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
+            <button class="btn" type="submit">Signup</button>
         </form>
-    </main>
-<%- include('../includes/end.ejs') %>
 ```
-* Now we need a controller action to run this new password screen
+* Make sure on getsignup page we are sending empty oldInput object
 
 ```js
-exports.getNewPassword = (req, res, next) => {
-    // we'll need to add a route later that and Cote's the token in a token field in our parameters
-  const token = req.params.token;
-  // $gt is greater than than now(today's date)
-  User.findOne({ resetToken: token, resetTokenExpiration: { $gt: Date.now() } })
-    .then(user => {
-      let message = req.flash('error');
-      if (message.length > 0) {
-        message = message[0];
-      } else {
-        message = null;
-      }
-      // here with the view we are passing userId and passwordToken also to update password.
-      res.render('auth/new-password', {
-        path: '/new-password',
-        pageTitle: 'New Password',
-        errorMessage: message,
-        userId: user._id.toString(),
-        passwordToken: token
-      });
+exports.getSignup = (req, res, next) => {
+    let signupErrMessage = req.flash('signUpError')
+
+    if(signupErrMessage.length >0 ){
+        signupErrMessage = signupErrMessage[0]
+    }else{
+        signupErrMessage = null
+    }
+    res.render('auth/signup', {
+        path: '/signup',
+        pageTitle: 'Signup',
+        errorMessage : signupErrMessage,
+        oldInput : {email: "", password: "",  confirmPassword: ""}
+    });
+};
+```
+
+### Adding Conditional CSS Classes
+
+* we could add some special class to the invalid input. 
+
+```js
+if (!errors.isEmpty()) {
+        console.log(errors.array());
+        return res.status(422).render('auth/signup', {
+            path: '/signup',
+            pageTitle: 'Signup',
+            errorMessage: errors.array()[0].msg,
+            oldInput : {email: email, password: password },
+            // here we added validationErrors array
+            validationErrors : errors.array()
+        });
+    }
+```
+* Now in our template we need to sets class conditionally basedon this validationErrors
+
+```js
+<form class="login-form" action="/signup" method="POST" novalidate>
+            <div class="form-control">
+                <label for="email">E-Mail</label>
+                <input class="<%= validationErrors.find(e => e.param === 'email') ? 'invalid' : '' %>" type="email" name="email" id="email" value="<%= oldInput.email %>">
+            </div>
+            <div class="form-control">
+                <label for="password">Password</label>
+                <input class="<%= validationErrors.find(e => e.param === 'password') ? 'invalid' : '' %>" type="password" name="password" id="password" value="<%= oldInput.password %>">
+            </div>
+            <div class="form-control">
+                <label for="confirmPassword">Confirm Password</label>
+                <input class="<%= validationErrors.find(e => e.param === 'confirmPassword') ? 'invalid' : '' %>" type="password" name="confirmPassword" id="confirmPassword" value="<%= oldInput.confirmPassword %>">
+            </div>
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
+            <button class="btn" type="submit">Signup</button>
+        </form>
+```
+* Make sure you added in valid css class
+
+```css
+.form-control input.invalid,
+.form-control textarea.invalid{
+  border-color: red
+}
+```
+* Add the same kind of validation to login also
+
+### Sanitizing Data
+
+* For example what you can do is you can ensure that there is no excess whitespace in a string passed by the user on the left or on the right, you can normalize an e-mail which means it's converted to lowercase , So sanitising input is also something that makes sense to be done.
+
+```js
+router.post('/signup', [check('email')
+                        .isEmail()
+                        .withMessage('Please enter a valid Email.')
+                        .custom((value, {req}) => {
+                            return UserModel.findOne({ email: value })
+                                    .then(userDoc => {
+                                        if (userDoc) {
+                                        // A promise is a built-in javascript object and with reject, 
+                                        // I basically throw an error inside of the promise and I reject with this error message I used before
+                                            return Promise.reject('Email exist already, Please pick a different one')
+                                        }
+                                    })
+                        })
+                        .normalizeEmail(),
+
+                        // body just an alternative we could ise check also
+                        // if you want to add default error message for all validation of the element
+                        body('password',
+                        'Please enter value with only with number and text , Atlest min 3 characters '
+                        )
+                        .isLength({min: 3, max: 5})
+                        .isAlphanumeric()
+                        .trim(),
+
+                        body('confirmPassword')
+                        .custom((value, {req}) => {
+                            if(value !== req.body.password){
+                                throw new Error('Passwords have to match');
+                            }
+                            return true;
+                        })
+                        .trim(),
+                    ],
+                        authController.postSignup);
+```
+* So sanitising data is also something which makes sense to ensure that your data is stored in a uniform format
+
+### Validating Product Addition
+
+```js
+// /admin/add-product => GET
+router.get('/add-product',[
+    body('title')
+    .isAlphanumeric()
+    .isLength({ min: 3})
+    .trim(),
+
+    body('imageUrl')
+        .isURL(),
+
+    body('price')
+        .isFloat(),
+
+    body('description')
+    .isAlphanumeric()
+    .isLength({ min: 5, max: 200})
+    .trim(),
+], isAuth, adminController.getAddProduct);
+
+
+
+// /admin/add-product => GET
+router.get('/add-product',[
+    body('title')
+    .isAlphanumeric()
+    .isLength({ min: 3})
+    .trim(),
+
+    body('imageUrl')
+        .isURL(),
+
+    body('price')
+        .isFloat(),
+
+    body('description')
+    .isAlphanumeric()
+    .isLength({ min: 5, max: 200})
+    .trim(),
+], isAuth, adminController.getAddProduct);
+```
+* let's go to the admin controller and make sure we collect these validation errors and return them
+
+```js
+const { validationResult } = require('express-validator');
+
+exports.postAddProduct = (req, res, next) => {
+  const title = req.body.title;
+  const imageUrl = req.body.imageUrl;
+  const price = req.body.price;
+  const description = req.body.description;
+/// Product Validations
+  const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        console.log(errors.array());
+        // we shoukd return this otherwise it will continue rest of the code 
+        return res.status(422).render('/admin/edit-product', {
+            path: '/admin/edit-product',
+            pageTitle: 'Products',
+            editing: false,
+            hasError: true,
+            errorMessage: errors.array()[0].msg,
+            product: {title: title, imageUrl: imageUrl, price: price, description: description },
+            validationErrors : errors.array()
+        });
+    }
+
+  const product = new Product({
+    title: title,
+    price: price,
+    description: description,
+    imageUrl: imageUrl,
+    userId: req.user
+  });
+  product
+    .save()
+    .then(result => {
+      // console.log(result);
+      console.log('Created Product');
+      res.redirect('/admin/products');
     })
     .catch(err => {
       console.log(err);
     });
 };
-```
-* Make sure we added hidden userId in our new password template
 
-* Makes sure we added routes for this new password page
+```
+* in our ejs template add hasError also with edit condition
 
 ```js
-// here we added token param to fetch token from URL.
-router.get('/reset/:token', authController.getNewPassword);
-```
-### Adding Logic to Update the Password
-
-* New password update 
-
-```js
-exports.postNewPassword = (req, res, next) => {
-    const newPassword = req.body.password;
-    const userId = req.body.userId;
-    // make sure we added passwordToken also as hidden element
-    const passwordToken = req.body.passwordToken;
-    let resetUser;
-    User.findOne({
-        resetToken: passwordToken,
-        resetTokenExpiration: { $gt: Date.now() },
-        _id: userId
-    })
-    .then(user => {
-        resetUser = user;
-        return bcrypt.hash(newPassword, 12);
-    })
-    .then(hashedPassword => {
-        resetUser.password = hashedPassword;
-        resetUser.resetToken = undefined;
-        resetUser.resetTokenExpiration = undefined;
-        return resetUser.save();
-    })
-    .then(result => {
-        res.redirect('/login');
-    })
-    .catch(err => {
-        console.log(err);
-    });
-};
+<form class="product-form" action="/admin/<% if (editing || hasError) { %>edit-product<% } else { %>add-product<% } %>" method="POST">
+            <div class="form-control">
+                <label for="title">Title</label>
+                <input type="text"  name="title" class="<%= validationErrors.find(e => e.param === 'title') ? 'invalid' : '' %>"  id="title" value="<% if (editing || hasError) { %><%= product.title %><% } %>">
+            </div>
+            <div class="form-control">
+                <label for="imageUrl">Image URL</label>
+                <input type="text" name="imageUrl" id="imageUrl" class="<%= validationErrors.find(e => e.param === 'imageUrl') ? 'invalid' : '' %>" value="<% if (editing || hasError) { %><%= product.imageUrl %><% } %>">
+            </div>
+            <div class="form-control">
+                <label for="price">Price</label>
+                <input type="number" name="price" id="price" class="<%= validationErrors.find(e => e.param === 'price') ? 'invalid' : '' %>" step="0.01" value="<% if (editing || hasError) { %><%= product.price %><% } %>">
+            </div>
+            <div class="form-control">
+                <label for="description">Description</label>
+                <textarea name="description" id="description" class="<%= validationErrors.find(e => e.param === 'description') ? 'invalid' : '' %>" rows="5"><% if (editing || hasError) { %><%= product.description %><% } %></textarea>
+            </div>
+            <% if (editing || hasError) { %>
+                <input type="hidden" value="<%= product._id %>" name="productId">
+            <% } %>
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
+            <button class="btn" type="submit"><% if (editing || hasError) { %>Update Product<% } else { %>Add Product<% } %></button>
+        </form>
 ```
 
-### Authorisation / Roles and previlages
-
-* Authorisation means that I restrict permissions of a logged in user.
-
-* So every user might be able to add anything to the cart including products created by the user but you might not be able to delete an edit products which is created by others.
-
-* In admin page I only want to render products that were created by the logged in user because there is no sense in showing products on this page that were not created by the user
-
-* when I find product, I dont find all but I'll add a filter and I'll filter for products where the user ID is equal to the user id of the currently logged in user,
-
-```js
-exports.getProducts = (req, res, next) => {
-  Product.find({userId: req.user._id})
-    // .select('title price -_id')
-    // .populate('userId', 'name')
-    .then(products => {
-      console.log(products);
-      res.render('admin/products', {
-        prods: products,
-        pageTitle: 'Admin Products',
-        path: '/admin/products'
-      });
-    })
-    .catch(err => console.log(err));
-};
-```
-* keep in mind request user exists because we do extract that user in app.js in a separate middleware
-
-### Adding Protection to Post Actions
-
-* it still doesn't mean we can't send requests somehow by creating our own pages where we still try to delete another product. So we should also add protections in our post actions, like in post edit and post delete product,
-
-* After findById then block where I have that product fetched from the database, there I will quickly check if product user ID is not equal to request user ID because if it's not equal, then this means the wrong user is trying to edit this.
-
-* For Edit 
+### Validating Product Editing
 
 ```js
 exports.postEditProduct = (req, res, next) => {
@@ -295,10 +506,23 @@ exports.postEditProduct = (req, res, next) => {
   const updatedImageUrl = req.body.imageUrl;
   const updatedDesc = req.body.description;
 
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+      console.log(errors.array());
+      // we shoukd return this otherwise it will continue rest of the code 
+      return res.status(422).render('/admin/edit-product', {
+          path: '/admin/edit-product',
+          pageTitle: 'Edit Product',
+          editing: true,
+          hasError: true,
+          errorMessage: errors.array()[0].msg,
+          product: {title: updatedTitle, imageUrl: updatedImageUrl, price: updatedPrice, description: updatedDesc, _id : prodId},
+          validationErrors : errors.array()
+      });
+  }
+
   Product.findById(prodId)
     .then(product => {
-        // here we are retruning if he is not product creator
-        //  should convert both to a string because I'm also checking for type equality.
       if(product.userId.toString() !== req.user._id.toString()){
         return res.redirect('/')
       }
@@ -307,31 +531,9 @@ exports.postEditProduct = (req, res, next) => {
       product.description = updatedDesc;
       product.imageUrl = updatedImageUrl;
       return product.save().then(result => {
-        //As we know then block will always execute even after  return in above then block
-        // That is why we moved then block immediately after return
         console.log('UPDATED PRODUCT!');
         res.redirect('/admin/products');
-        }).catch(err => console.log(err));
-    })
-    // .then(result => {
-    //     console.log('UPDATED PRODUCT!');
-    //     res.redirect('/admin/products');
-    //     })
-    
-    .catch(err => console.log(err));
-};
-
-```
-
-* For Delete
-
-```js
-exports.postDeleteProduct = (req, res, next) => {
-  const prodId = req.body.productId;
-  Product.deleteOne({_id: prodId, userId: req.user._id})
-    .then(() => {
-      console.log('DESTROYED PRODUCT');
-      res.redirect('/admin/products');
+      }).catch(err => console.log(err));
     })
     .catch(err => console.log(err));
 };
