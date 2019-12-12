@@ -1,540 +1,306 @@
 # Node-Js
 
-## Understanding Validation
+## Error Handling 
 
-* Refer Validation image
-* Express-Validator Docs: https://express-validator.github.io/docs/
-* Validator.js (which is used behind the scenes) Docs: https://github.com/chriso/validator.js
+### Types of Errors & Error Handling
 
-### Setup & Basic Validation
+* Refer : Types of error and working with error images in image folder
 
-```js
-npm install --save express-validator
-```
-* we are going to validate (POST) login and signup data
+### Analyzing the Error Handling in the Current Project
 
-* Email Validation
+* for example mongodb will throw an error if it can't connect or if an operation fails. So such errors can be thrown and if we don't handle them, then our application just crashes
 
-```js
-const { check } = require('express-validator');
-const authController = require('../controllers/auth');
-...
-...
-// this can be either string or array of string
-router.post('/signup', check('email').isEmail().withMessage('Please enter a valid Email.'), authController.postSignup);
-```
+* Now how can we handle errors?
 
-* In controller postSignuo validate the result and redirect
+* Well one solution for synchronous code, so code that executes line by line immediately and does not wait for anything, so for example where we don't interact with files or where we don't send requests, well such code can be wrapped with try catch
 
 ```js
-// validationResult will be a function which allow us to gather all the error
-const { validationResult } = require('express-validator');
-
-exports.postSignup = (req, res, next) => {
-  const email = req.body.email;
-  const password = req.body.password;
-  const confirmPassword = req.body.confirmPassword;
-
-  // Validations changes here..
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    console.log(errors.array());
-    // 422 - common status code to indicate the validation failed.
-    return res.status(422).render('auth/signup', {
-      path: '/signup',
-      pageTitle: 'Signup',
-      // since error is array object ......
-      errorMessage: errors.array()[0].msg
-    });
-  }
-
-  User.findOne({ email: email })
-    .then(userDoc => {
-      if (userDoc) {
-        req.flash(
-          'error',
-          'E-Mail exists already, please pick a different one.'
-        );
-        return res.redirect('/signup');
-      }
-      return bcrypt
-        .hash(password, 12)
-        .then(hashedPassword => {
-          const user = new User({
-            email: email,
-            password: hashedPassword,
-            cart: { items: [] }
-          });
-          return user.save();
-        })
-        .then(result => {
-          res.redirect('/login');
-          return transporter.sendMail({
-            to: email,
-            from: 'shop@node-complete.com',
-            subject: 'Signup succeeded!',
-            html: '<h1>You successfully signed up!</h1>'
-          });
-        })
-        .catch(err => {
-          console.log(err);
-        });
-    })
-    .catch(err => {
-      console.log(err);
-    });
-};
-```
-### Built-In & Custom Validators
-
-* You can also add your own validator though
-
-* let's say we're not just using isEmail,I also want to make sure it's a specific e-mail I want to have. For that I can add custom here 
-
-```js
-router.post('/signup', check('email')
-                        .isEmail()
-                        .withMessage('Please enter a valid Email.')
-                        .custom((value, {req}) => {
-                            // Here we will add our validation logic 
-                            if(value === 'test@test.com'){
-                                throw new Error('This email is forbidden.');
-                            }
-                            // if valid we will return true
-                            return true;
-                        }),
-                        authController.postSignup);
-```
-* how you can use the many built-in ones ? and of course that you can chain them after each other to add multiple validators to one and the same field.
-
-### More Validators
-
-```js
-const { check, body } = require('express-validator');
-
-router.post('/signup', [
-                        check('email')
-                        .isEmail()
-                        .withMessage('Please enter a valid Email.')
-                        .custom((value, {req}) => {
-                            if(value === 'test@test.com'){
-                                throw new Error('This email is forbidden.');
-                            }
-                            return true;
-                        }),
-                        // body just an alternative we could ise check also
-                        // if you want to add default error message for all validation of the element
-                        body('password',
-                        'Please enter value with only with number and text , Atlest min 3 characters '
-                        )
-                        .isLength({min: 3, max: 5})
-                        .isAlphanumeric()
-                        ],
-                        authController.postSignup);
-```
-### Checking For Field Equality
-
-```js
-
-router.post('/signup', [
-                            check('email')
-                            .isEmail()
-                            .withMessage('Please enter a valid Email.')
-                            .custom((value, {req}) => {
-                                if(value === 'test@test.com'){
-                                    throw new Error('This email is forbidden.');
-                                }
-                                return true;
-                            }),
-
-                            // body just an alternative we could ise check also
-                            // if you want to add default error message for all validation of the element
-                            body('password',
-                            'Please enter value with only with number and text , Atlest min 3 characters '
-                            )
-                            .isLength({min: 3, max: 5})
-                            .isAlphanumeric(),
-
-                            // Confirm password validation
-                            body('confirmPassword')
-                            .custom((value, {req}) => {
-                                if(value !== req.body.password){
-                                    throw new Error('Passwords have to match');
-                                }
-                                return true;
-                            })
-                        ],
-                        authController.postSignup);
-```
-
-### Adding Async Validation
-
-* As of now we are checking email existance after validation but it should be part of our validation.
-
-```js
-const UserModel = require('../models/user');
-
-router.post('/signup', [check('email')
-                        .isEmail()
-                        .withMessage('Please enter a valid Email.')
-                        .custom((value, {req}) => {
-                            // Async Validation here..
-                            return UserModel.findOne({ email: value })
-                                    .then(userDoc => {
-                                        if (userDoc) {
-                                        // A promise is a built-in javascript object and with reject, 
-                                        // I basically throw an error inside of the promise and I reject with this error message I used before
-                                            return Promise.reject('Email exist already, Please pick a different one')
-                                        }
-                                    })
-                        }),
-                    ....
-                    ....
-                    ],
-                        authController.postSignup);
-```
-
-* Since we handled email existence in router itself let us let us remove those logic from controller 
-
-```js
-exports.postSignup = (req, res, next) => {
-    const email = req.body.email;
-    const password = req.body.password;
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-    console.log(errors.array());
-    return res.status(422).render('auth/signup', {
-        path: '/signup',
-        pageTitle: 'Signup',
-        errorMessage: errors.array()[0].msg
-    });
+const sum = (a, b) => {
+    if(a & b){
+        return a + b;
     }
-    
-    return bcrypt.hash(password, 12)
-                .then(hashedPassword => {
-                    const user = new User({
-                        email: email,
-                        password: hashedPassword,
-                        cart: { items: [] }
-                    });
-                    return user.save();
-                })
-                .then(result => {
-                    res.redirect('/login');
-                    return transporter.sendMail({
-                        to : email,
-                        from : 'node@learning.com',
-                        subject: 'Signup Succeeded!!',
-                        html : '<h1>You successfully integrated mail in node!!</h1>'
-                    }).catch(err => {
-                        console.log(err);
-                    });
-                    
-                })
+    throw new Error('Invalid Agument');
 };
-```
 
-### Keeping User Input
-
-* If user entered value is worng value we are clearing the value, but we should retain the value even after error message.
-
-```js
-// auth controller signup action 
-return res.status(422).render('auth/signup', {
-        path: '/signup',
-        pageTitle: 'Signup',
-        errorMessage: errors.array()[0].msg,
-        // while redirecting we are sending back the password to the template from controller
-        oldInput : {email: email, password: password,  confirmPassword: req.body.confirmPassword}
-    });
-```
-
-* In template add these old input values
-
-```js
-<form class="login-form" action="/signup" method="POST" novalidate>
-            <div class="form-control">
-                <label for="email">E-Mail</label>
-                <input type="email" name="email" id="email" value="<%= oldInput.email %>">
-            </div>
-            <div class="form-control">
-                <label for="password">Password</label>
-                <input type="password" name="password" id="password" value="<%= oldInput.password %>">
-            </div>
-            <div class="form-control">
-                <label for="confirmPassword">Confirm Password</label>
-                <input type="password" name="confirmPassword" id="confirmPassword" value="<%= oldInput.confirmPassword %>">
-            </div>
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
-            <button class="btn" type="submit">Signup</button>
-        </form>
-```
-* Make sure on getsignup page we are sending empty oldInput object
-
-```js
-exports.getSignup = (req, res, next) => {
-    let signupErrMessage = req.flash('signUpError')
-
-    if(signupErrMessage.length >0 ){
-        signupErrMessage = signupErrMessage[0]
-    }else{
-        signupErrMessage = null
-    }
-    res.render('auth/signup', {
-        path: '/signup',
-        pageTitle: 'Signup',
-        errorMessage : signupErrMessage,
-        oldInput : {email: "", password: "",  confirmPassword: ""}
-    });
-};
-```
-
-### Adding Conditional CSS Classes
-
-* we could add some special class to the invalid input. 
-
-```js
-if (!errors.isEmpty()) {
-        console.log(errors.array());
-        return res.status(422).render('auth/signup', {
-            path: '/signup',
-            pageTitle: 'Signup',
-            errorMessage: errors.array()[0].msg,
-            oldInput : {email: email, password: password },
-            // here we added validationErrors array
-            validationErrors : errors.array()
-        });
-    }
-```
-* Now in our template we need to sets class conditionally basedon this validationErrors
-
-```js
-<form class="login-form" action="/signup" method="POST" novalidate>
-            <div class="form-control">
-                <label for="email">E-Mail</label>
-                <input class="<%= validationErrors.find(e => e.param === 'email') ? 'invalid' : '' %>" type="email" name="email" id="email" value="<%= oldInput.email %>">
-            </div>
-            <div class="form-control">
-                <label for="password">Password</label>
-                <input class="<%= validationErrors.find(e => e.param === 'password') ? 'invalid' : '' %>" type="password" name="password" id="password" value="<%= oldInput.password %>">
-            </div>
-            <div class="form-control">
-                <label for="confirmPassword">Confirm Password</label>
-                <input class="<%= validationErrors.find(e => e.param === 'confirmPassword') ? 'invalid' : '' %>" type="password" name="confirmPassword" id="confirmPassword" value="<%= oldInput.confirmPassword %>">
-            </div>
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
-            <button class="btn" type="submit">Signup</button>
-        </form>
-```
-* Make sure you added in valid css class
-
-```css
-.form-control input.invalid,
-.form-control textarea.invalid{
-  border-color: red
+try {
+    console.log(sum(1));
+} catch (error) {
+    console.log('Error occured!');
+    console.log(error)
 }
+
+console.log("This line executed after error message");
 ```
-* Add the same kind of validation to login also
 
-### Sanitizing Data
+* with the above code we handeled error in try catch so that our app won't crash, So this is why handling code like this is a good thing to do because this ensures that we can continue with code, that we can handle this gracefully, Now here we have a look at an error and synchronous code throwing an error which we can handle with try catch.
 
-* For example what you can do is you can ensure that there is no excess whitespace in a string passed by the user on the left or on the right, you can normalize an e-mail which means it's converted to lowercase , So sanitising input is also something that makes sense to be done.
+* Now we also have async operations that can fail of course and such operations when using promises are handled with then and catch, that is what we can see a lot in our code, then is your success case and catch allows you to execute code if that fails. Catch by the way collects all errors that are thrown by any prior then blocks,
+
+* so if we had more than then block in our chain here, catch would fire on any error thrown in any then block or any operation executed in a then block,
+
+### Throwing Errors in Code
 
 ```js
-router.post('/signup', [check('email')
-                        .isEmail()
-                        .withMessage('Please enter a valid Email.')
-                        .custom((value, {req}) => {
-                            return UserModel.findOne({ email: value })
-                                    .then(userDoc => {
-                                        if (userDoc) {
-                                        // A promise is a built-in javascript object and with reject, 
-                                        // I basically throw an error inside of the promise and I reject with this error message I used before
-                                            return Promise.reject('Email exist already, Please pick a different one')
-                                        }
-                                    })
-                        })
-                        .normalizeEmail(),
-
-                        // body just an alternative we could ise check also
-                        // if you want to add default error message for all validation of the element
-                        body('password',
-                        'Please enter value with only with number and text , Atlest min 3 characters '
-                        )
-                        .isLength({min: 3, max: 5})
-                        .isAlphanumeric()
-                        .trim(),
-
-                        body('confirmPassword')
-                        .custom((value, {req}) => {
-                            if(value !== req.body.password){
-                                throw new Error('Passwords have to match');
-                            }
-                            return true;
-                        })
-                        .trim(),
-                    ],
-                        authController.postSignup);
-```
-* So sanitising data is also something which makes sense to ensure that your data is stored in a uniform format
-
-### Validating Product Addition
-
-```js
-// /admin/add-product => GET
-router.get('/add-product',[
-    body('title')
-    .isAlphanumeric()
-    .isLength({ min: 3})
-    .trim(),
-
-    body('imageUrl')
-        .isURL(),
-
-    body('price')
-        .isFloat(),
-
-    body('description')
-    .isAlphanumeric()
-    .isLength({ min: 5, max: 200})
-    .trim(),
-], isAuth, adminController.getAddProduct);
-
-
-
-// /admin/add-product => GET
-router.get('/add-product',[
-    body('title')
-    .isAlphanumeric()
-    .isLength({ min: 3})
-    .trim(),
-
-    body('imageUrl')
-        .isURL(),
-
-    body('price')
-        .isFloat(),
-
-    body('description')
-    .isAlphanumeric()
-    .isLength({ min: 5, max: 200})
-    .trim(),
-], isAuth, adminController.getAddProduct);
-```
-* let's go to the admin controller and make sure we collect these validation errors and return them
-
-```js
-const { validationResult } = require('express-validator');
-
-exports.postAddProduct = (req, res, next) => {
-  const title = req.body.title;
-  const imageUrl = req.body.imageUrl;
-  const price = req.body.price;
-  const description = req.body.description;
-/// Product Validations
-  const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        console.log(errors.array());
-        // we shoukd return this otherwise it will continue rest of the code 
-        return res.status(422).render('/admin/edit-product', {
-            path: '/admin/edit-product',
-            pageTitle: 'Products',
-            editing: false,
-            hasError: true,
-            errorMessage: errors.array()[0].msg,
-            product: {title: title, imageUrl: imageUrl, price: price, description: description },
-            validationErrors : errors.array()
-        });
+app.use((req, res, next) => {
+    // here we are returning next id user session is not set,  if I would not add this check, then I could try to find a user without the session object existing and that would then crash our app.
+    if (!req.session.user) {
+      return next();
     }
-
-  const product = new Product({
-    title: title,
-    price: price,
-    description: description,
-    imageUrl: imageUrl,
-    userId: req.user
-  });
-  product
-    .save()
-    .then(result => {
-      // console.log(result);
-      console.log('Created Product');
-      res.redirect('/admin/products');
-    })
-    .catch(err => {
-      console.log(err);
-    });
-};
-
-```
-* in our ejs template add hasError also with edit condition
-
-```js
-<form class="product-form" action="/admin/<% if (editing || hasError) { %>edit-product<% } else { %>add-product<% } %>" method="POST">
-            <div class="form-control">
-                <label for="title">Title</label>
-                <input type="text"  name="title" class="<%= validationErrors.find(e => e.param === 'title') ? 'invalid' : '' %>"  id="title" value="<% if (editing || hasError) { %><%= product.title %><% } %>">
-            </div>
-            <div class="form-control">
-                <label for="imageUrl">Image URL</label>
-                <input type="text" name="imageUrl" id="imageUrl" class="<%= validationErrors.find(e => e.param === 'imageUrl') ? 'invalid' : '' %>" value="<% if (editing || hasError) { %><%= product.imageUrl %><% } %>">
-            </div>
-            <div class="form-control">
-                <label for="price">Price</label>
-                <input type="number" name="price" id="price" class="<%= validationErrors.find(e => e.param === 'price') ? 'invalid' : '' %>" step="0.01" value="<% if (editing || hasError) { %><%= product.price %><% } %>">
-            </div>
-            <div class="form-control">
-                <label for="description">Description</label>
-                <textarea name="description" id="description" class="<%= validationErrors.find(e => e.param === 'description') ? 'invalid' : '' %>" rows="5"><% if (editing || hasError) { %><%= product.description %><% } %></textarea>
-            </div>
-            <% if (editing || hasError) { %>
-                <input type="hidden" value="<%= product._id %>" name="productId">
-            <% } %>
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
-            <button class="btn" type="submit"><% if (editing || hasError) { %>Update Product<% } else { %>Add Product<% } %></button>
-        </form>
-```
-
-### Validating Product Editing
-
-```js
-exports.postEditProduct = (req, res, next) => {
-  const prodId = req.body.productId;
-  const updatedTitle = req.body.title;
-  const updatedPrice = req.body.price;
-  const updatedImageUrl = req.body.imageUrl;
-  const updatedDesc = req.body.description;
-
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-      console.log(errors.array());
-      // we shoukd return this otherwise it will continue rest of the code 
-      return res.status(422).render('/admin/edit-product', {
-          path: '/admin/edit-product',
-          pageTitle: 'Edit Product',
-          editing: true,
-          hasError: true,
-          errorMessage: errors.array()[0].msg,
-          product: {title: updatedTitle, imageUrl: updatedImageUrl, price: updatedPrice, description: updatedDesc, _id : prodId},
-          validationErrors : errors.array()
+    User.findById(req.session.user._id)
+      .then(user => {
+          // It might of course still fail and for some reason, we might still not find that user even if we have it stored in a session, maybe because the user was deleted in a database in-between. so its better tor redirect..
+        if(!user){
+          return next()
+        }
+        req.user = user;
+        next();
+      })
+      .catch(err => {
+          //Throwing this error has a significant advantage, that we will see soon..
+          //  expressjs gives us a way of taking care of such errors,
+          // we will discuss this soon.. after 500 error
+        throw new Error(err)
       });
-  }
+  });
+```
+### Returning Error Pages
 
-  Product.findById(prodId)
-    .then(product => {
-      if(product.userId.toString() !== req.user._id.toString()){
-        return res.redirect('/')
-      }
-      product.title = updatedTitle;
-      product.price = updatedPrice;
-      product.description = updatedDesc;
-      product.imageUrl = updatedImageUrl;
-      return product.save().then(result => {
-        console.log('UPDATED PRODUCT!');
-        res.redirect('/admin/products');
-      }).catch(err => console.log(err));
-    })
-    .catch(err => console.log(err));
+* Sometimes you got bigger problems though, you don't want to return the same page again,instead you really want to show an error page to show the user something bigger is wrong, we're working on it but for now you'll probably not be able to continue. And for such scenarios, I'll add a new view next to my 500.ejs file,
+
+```js
+<%- include('includes/head.ejs') %>
+</head>
+
+<body>
+    <%- include('includes/navigation.ejs') %>
+    <h1>Some error occured!</h1>
+    <p>We are working on fixing this, sorry for the inconvenience !</p>
+
+<%- include('includes/end.ejs') %>
+```
+
+* Make sure you added controller action 500
+
+```js
+exports.get500= (req, res, next) => {
+  res.status(500).render('500', {
+    pageTitle: 'Error!!',
+    path: '/500',
+    isAuthenticated: req.session.isLoggedIn
+  });
 };
 ```
+* Add  500 route in app.js 
+
+```js
+app.use('/500',errorController.get500);
+```
+* Now we can use this 500 page in our admin controller catch block
+
+```js
+...
+...
+
+.catch(err => {
+    res.redirect('/500');
+});
+```
+### Using the Express.js Error Handling Middleware
+
+* Now we have to do this changes in all catch block instead of that we will add a error handling middleware..
+
+* Before that instead of redirect we will throw error inside catch block
+
+```js
+.catch(err => {
+    const error = new Error(err);
+    error.httpStatusCode = 500;
+    // when we call next with an error passed as an argument, then we actually let express know that an error occurred and it will skip all other middlewares and move right away to an error handling middleware
+    return next(error);
+
+});
+```
+* when we call next with an error passed as an argument, then we actually let express know that an error occurred and it will skip all other middlewares and move right away to an error handling middleware, that we are going to define next.
+
+* all these middlewares use three arguments, request response and next. Express also knows a middleware with four arguments, a so-called error handling middleware
+
+```js
+app.use((error, req, res, next) => {
+  res.redirect('/500');
+});
+```
+* Now please note, the this error handler will not execute for 404 errors. There we still handle this manually because technically, the 404 error is simply just a valid url which we catch with our catch all handler there where we then just happen to render the 404 page, it's not a technical error
+
+* So one important takeaway is throwing an error here does not lead to our general error handling middleware being called and that is important.
+This is true because we're inside some async code, we're inside a promise here, we're inside a then or a catch block. If you throw errors there, you will not reach that express error handling middleware.
+
+* The interesting thing is if you would throw an error outside of async code, so in a place where the code executes synchronously, so basically outside of a promise, then catch block or outside of a callback, you'll see that it tried to load the 500 page 
+
+* The reason for that is that in synchronous places, so outside of callbacks and promises, you throw an error and express will detect this and execute your next error handling middleware. 
+
+* so inside of then, catch or callbacks, this does not work however. Inside of that, you have to use next with an error included.
+
+```js
+.catch(err => {
+        next(new Error(err))
+      });
+```
+### Status Codes
+
+* The codes are simply extra information we pass to the browser which helps the browser understand if an operation succeeded or not.
+
+* status codes also allow you to understand if an error happened, which kind of error because you typically map certain kinds of errors to certain kinds of status codes.
+
+    *  200 status codes, most importantly 200 and 201, these are always success status codes, they indicate that the operation simply succeeded
+
+    * 300 status codes which simply indicates that a redirection happened.
+
+    * 400 status codes which show you that something happened because an error was done by the client, for example incorrect data was entered into a form,  well then we return this 422 error code
+
+    * 500 status codes which indicate that a server side error occurred.
+
+    * Refer status code image 
+
+
+### Available Status Codes
+* Which status codes are available? 
+
+* MDN has a nice list: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+
+* 1×× Informational
+
+    * 100 Continue
+
+    * 101 Switching Protocols
+
+    * 102 Processing
+
+* 2×× Success
+
+    * 200 OK
+
+    * 201 Created
+
+    * 202 Accepted
+
+    * 203 Non-authoritative Information
+
+    * 204 No Content
+
+    * 205 Reset Content
+
+    * 206 Partial Content
+
+    * 207 Multi-Status
+
+    * 208 Already Reported
+
+    * 226 IM Used
+
+* 3×× Redirection
+
+    * 300 Multiple Choices
+
+    * 301 Moved Permanently
+
+    * 302 Found
+
+    * 303 See Other
+
+    * 304 Not Modified
+
+    * 305 Use Proxy
+
+    * 307 Temporary Redirect
+
+    * 308 Permanent Redirect
+
+* 4×× Client Error
+
+    * 400 Bad Request
+
+    * 401 Unauthorized
+
+    * 402 Payment Required
+
+    * 403 Forbidden
+
+    * 404 Not Found
+
+    * 405 Method Not Allowed
+
+    * 406 Not Acceptable
+
+    * 407 Proxy Authentication Required
+
+    * 408 Request Timeout
+
+    * 409 Conflict
+
+    * 410 Gone
+
+    * 411 Length Required
+
+    * 412 Precondition Failed
+
+    * 413 Payload Too Large
+
+    * 414 Request-URI Too Long
+
+    * 415 Unsupported Media Type
+
+    * 416 Requested Range Not Satisfiable
+
+    * 417 Expectation Failed
+
+    * 418 I'm a teapot
+
+    * 421 Misdirected Request
+
+    * 422 Unprocessable Entity
+
+    * 423 Locked
+
+    * 424 Failed Dependency
+
+    * 426 Upgrade Required
+
+    * 428 Precondition Required
+
+    * 429 Too Many Requests
+
+    * 431 Request Header Fields Too Large
+
+    * 444 Connection Closed Without Response
+
+    * 451 Unavailable For Legal Reasons
+
+    * 499 Client Closed Request
+
+* 5×× Server Error
+
+    * 500 Internal Server Error
+
+    * 501 Not Implemented
+
+    * 502 Bad Gateway
+
+    * 503 Service Unavailable
+
+    * 504 Gateway Timeout
+
+    * 505 HTTP Version Not Supported
+
+    * 506 Variant Also Negotiates
+
+    * 507 Insufficient Storage
+
+    * 508 Loop Detected
+
+    * 510 Not Extended
+
+    * 511 Network Authentication Required
+
+    * 599 Network Connect Timeout Error
+
+* Source: https://httpstatuses.com/
