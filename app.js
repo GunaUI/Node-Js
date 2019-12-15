@@ -8,7 +8,29 @@ const MongoDbStore = require('connect-mongodb-session')(sessionObj);
 
 const csrf = require('csurf');
 const csrfProtection = csrf({})
+
+
 const flash = require('connect-flash');
+const multer = require('multer');
+
+const fileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images');
+  },
+  filename: (req, file, cb) => {
+    cb(null, new Date().toISOString() + '-' + file.originalname);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if(file.mimetype === 'image/jpeg' || file.mimetype === 'image/jpg'|| file.mimetype === 'image/png'){
+    // if we accepted the file type
+    cb(null, true);
+  }else{
+    // if we didn't accept this file type
+    cb(null, false);
+  }
+}
 
 const errorController = require('./controllers/error');
 const User = require('./models/user');
@@ -29,7 +51,11 @@ const shopRoutes = require('./routes/shop');
 const authRoutes = require('./routes/auth');
 
 app.use(bodyParser.urlencoded({ extended: false }));
+// single('image') -> image(name) should match with file element name
+app.use(multer({ storage: fileStorage, fileFilter: fileFilter }).single('image'));
+
 app.use(express.static(path.join(__dirname, 'public')));
+app.use("/images", express.static(path.join(__dirname, 'images')));
 
 app.use(sessionObj(
   {

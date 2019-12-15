@@ -1,5 +1,7 @@
 const { validationResult } = require('express-validator');
 
+const fileHelper = require('../util/file');
+
 const Product = require('../models/product');
 
 exports.getAddProduct = (req, res, next) => {
@@ -15,9 +17,23 @@ exports.getAddProduct = (req, res, next) => {
 
 exports.postAddProduct = (req, res, next) => {
   const title = req.body.title;
-  const imageUrl = req.body.imageUrl;
+  const image = req.file
   const price = req.body.price;
   const description = req.body.description;
+
+  if(!image){
+    return res.status(422).render('/admin/add-product', {
+      path: '/admin/add-product',
+      pageTitle: 'Products',
+      editing: false,
+      hasError: true,
+      errorMessage: 'Attached file is not a image!',
+      product: {title: title, price: price, description: description },
+      validationErrors : [] // i won't mark anything as red
+    });
+  }
+  // I will use my image data which is that file object we get from multer and there we have information like the file path and it's this path that is interesting to me of course because this is the path that a file on my operating system,
+  const imageUrl = image.path
 
   const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -28,7 +44,7 @@ exports.postAddProduct = (req, res, next) => {
             editing: false,
             hasError: true,
             errorMessage: errors.array()[0].msg,
-            product: {title: title, imageUrl: imageUrl, price: price, description: description },
+            product: {title: title,  price: price, description: description },
             validationErrors : errors.array()
         });
     }
@@ -74,7 +90,8 @@ exports.getEditProduct = (req, res, next) => {
         editing: editMode,
         product: product,
         hasError: false,
-        errorMessage: null
+        errorMessage: null,
+        validationErrors: []
       });
     })
     .catch(err => {
@@ -89,7 +106,7 @@ exports.postEditProduct = (req, res, next) => {
   const prodId = req.body.productId;
   const updatedTitle = req.body.title;
   const updatedPrice = req.body.price;
-  const updatedImageUrl = req.body.imageUrl;
+  const image = req.file;
   const updatedDesc = req.body.description;
 
   const errors = validationResult(req);
@@ -102,7 +119,7 @@ exports.postEditProduct = (req, res, next) => {
           editing: true,
           hasError: true,
           errorMessage: errors.array()[0].msg,
-          product: {title: updatedTitle, imageUrl: updatedImageUrl, price: updatedPrice, description: updatedDesc, _id : prodId },
+          product: {title: updatedTitle, price: updatedPrice, description: updatedDesc, _id : prodId },
           validationErrors : errors.array()
       });
   }
@@ -115,7 +132,15 @@ exports.postEditProduct = (req, res, next) => {
       product.title = updatedTitle;
       product.price = updatedPrice;
       product.description = updatedDesc;
-      product.imageUrl = updatedImageUrl;
+      // if we are updating with new image at that time only we will update the new updated URL in Db.
+      // if no image don't update
+      if(image){
+        // here we are removing/unlink the old image from folder
+        fileHelper.deleteFile(product.imageUrl);
+
+        const updatedImageUrl = image.path
+        product.imageUrl = updatedImageUrl;
+      }
       return product.save().then(result => {
         console.log('UPDATED PRODUCT!');
         res.redirect('/admin/products');
@@ -149,7 +174,17 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
-  Product.deleteOne({_id: prodId, userId: req.user._id})
+  Product.findById(prodId)
+    .then(product => {
+      if (!product) {
+        return next(new Error('Product not found.'));
+      }
+      // here we are deleting the product image
+      fileHelper.deleteFile(product.imageUrl);
+
+      // here we are deleting the product form DB
+      return Product.deleteOne({ _id: prodId, userId: req.user._id });
+    })
     .then(() => {
       console.log('DESTROYED PRODUCT');
       res.redirect('/admin/products');

@@ -21,8 +21,8 @@ router.post(
         .normalizeEmail(),
 
         body('password', 'Password has to be valid.')
-        .isLength({ min: 5 })
-        .isAlphanumeric()
+        .isLength({ min: 3 })
+        .isString()
         .trim()
     ],
     authController.postLogin
@@ -49,7 +49,7 @@ router.post('/signup', [check('email')
                         'Please enter value with only with number and text , Atlest min 3 characters '
                         )
                         .isLength({min: 3, max: 5})
-                        .isAlphanumeric()
+                        .isString()
                         .trim(),
 
                         body('confirmPassword')

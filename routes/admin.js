@@ -17,8 +17,8 @@ router.get('/add-product',[
     .isLength({ min: 3})
     .trim(),
 
-    body('imageUrl')
-        .isURL(),
+    // body('imageUrl')
+    //     .isURL(),
 
     body('price')
         .isFloat(),
@@ -40,9 +40,6 @@ router.get('/edit-product/:productId',[
     .isAlphanumeric()
     .isLength({ min: 3})
     .trim(),
-
-    body('imageUrl')
-        .isURL(),
 
     body('price')
         .isFloat(),
