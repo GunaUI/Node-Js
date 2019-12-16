@@ -172,8 +172,8 @@ exports.getProducts = (req, res, next) => {
     });
 };
 
-exports.postDeleteProduct = (req, res, next) => {
-  const prodId = req.body.productId;
+exports.deleteProduct = (req, res, next) => {
+  const prodId = req.params.productId;
   Product.findById(prodId)
     .then(product => {
       if (!product) {
@@ -187,11 +187,14 @@ exports.postDeleteProduct = (req, res, next) => {
     })
     .then(() => {
       console.log('DESTROYED PRODUCT');
-      res.redirect('/admin/products');
+      // now we return json responses because we don't want to render a new page, we just want to return some data.
+      res.status(200).json({message: "Success!"})
+      // i will not redirect, just will update the response in current page
+      // res.redirect('/admin/products');
     })
     .catch(err => {
-      const error = new Error(err);
-      error.httpStatusCode = 500;
-      return next(error);
+      // now we return json responses because we don't want to render a new page, we just want to return some data.
+      res.status(500).json({message: "Deleting Product Failure!"})
     });
 };
+
