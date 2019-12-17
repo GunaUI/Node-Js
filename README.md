@@ -1,174 +1,265 @@
 # Node-Js
 
-## Understanding-Async-Requests
+## Adding Payment
 
-* The request was always a request sent from our browser when we submitted a form or entered a url or clicked a link and the response always was either a redirect or a new html page.
+### How Payments Work
+* steps : Refer image
+    * we start by collecting the payment method
 
-### What are Async Requests?
+    *  We then have to verify that, is the credit card data correct, is it expired, is the number correct?
 
-* Now typically you send a request from your client to the server and you get back a response, but there are tasks where you don't want to reload the page just to for example delete an item and actually in modern web applications, the portion that happens behind the scenes grows. Since we can do a lot with javascript in the browser where we never need to fetch a new html page but where we constantly change the existing page as this is faster than loading a new one.
+    * We then have to charge it 
 
-* The idea behind asynchronous requests is that you do send the request but that request typically
-contains just some data in a special format named json and that data is sent to the server, to a certain url or a route accepted by that server, so that logic doesn't change. The server can do whatever it wants to do with that and then we return a response and that response is also returned
-behind the scenes, so it's not a new html page that needs to be rendered, it's instead again just some data in that json format typically.
+    *  we have to manage payments, so that includes things like fraud protection, also managing disputes and so on.
 
-* And that is how client server can communicate through javascript, so through client side javascript and the server side logic without reloading or rebuilding the page, without exchanging a new html page. And that allows you to do some work behind the scenes without interrupting the user flow, without reloading the page.(Refer Async image)
+    * And last but not least, we of course have to process the order in our app, so in our server side code, for example that we store it in the database there.
 
-### Adding Client Side JS Code
+* Stripe is a very popular company offering payment services, it offers a great integration and it's super easy to add to any application
 
-* when I would click delete, I would simply well delete that, send that request to the server
-and get back a new version of that page essentially where this product is then missing
+### How Stripe Works
 
-* it would be a great user experience if we would never have to leave that page, if we wouldn't reload that page but if we click delete, we send that information that we want to get rid of that item to the server behind the scenes, the server can then still do its thing and once we're done, the server will respond just with some json data, and once we get that response in our browser, we can delete this dom element, 
+* Well we have our client and our server,
 
-* Lets create a file say admin.js inside public/js
+* the client, we'll collect credit card data. We'll do that with the help of stripe and we'll send it to the stripe servers which are not owned by us but by that company to validate that input.
 
-* include this file in your admin/product.ejs footer. we added this at the footer because by the time the entire templated loaded before this file loads.
+* Once it is valid, stripe will return a token to us which basically encodes or which includes that credit card data and the confirmation that it is correct. 
 
-* Lets add some logic to that file (public/js/admin.js)
+* We send that token to our server and in our code, we create a charge or we charge this payment method then with the help of stripe again.
 
-*  before that want to react to a click on this delete button, this button should not be of type submit anymore, i should be of type button instead.Actually I will remove this entire form because this form was required for sending a request through the browser, sending a request with this xwww url form encoded data. Now I'll not do it like this anymore, I will get rid of that
+* So we create a payment object, a charge object, we send that to stripe with that token and with our price included and stripe will then do the actual charging, do the actual managing and we will get a response once this is done and then we can also continue with our code and edit this
+or store this in the database and so on. So this is generally how that will work.
 
-```html
-<div class="card__actions">
-    <a href="/admin/edit-product/<%= product._id %>?edit=true" class="btn">Edit</a>
-    <input type="hidden" value="<%= product._id %>" name="productId">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
-    // this refer to the elemenet we click
-    <button class="btn" onclick="deleteProduct(this)">Delete</button>
-</div>
-```
-* I will listen to a click to that button and then I will gather the product ID and the csrf token manually through the help of my client side javascript.
+* Refer : Stripe image
+
+### Adding a Checkout Page
+
+* Add router for checkout page
 
 ```js
-// public/js/admin.js
-const deleteProduct = (btn) => {
-    //parentNode refer here is div class="card__actions" 
-    const prodId = btn.parentNode.querySelector('[name=productId]').value;
-    const csrf = btn.parentNode.querySelector('[name=_csrf]').value;
-};
+router.get('/checkout', isAuth, shopController.getCheckout);
 ```
-* now with these two pieces of information, we can now send our asynchronous requests to the server
-
-### Sending & Handling Background Requests
-
-* now to continue, we need a route on the backend to which we can send our javascript request. For that let's go to the routes folder and there to admin.js.
-
-* We can use existing route but now since we'll send the request directly through javascript, we can actually use a different http verb.
-
-* Thus far we always use get and post because the browser natively supports these for the requests sent by the browser, by form submission and by clicking links, it only knows get and post
-
-* When we send requests through javascript, so through browser side javascript, we have access to other http verbs too.
-
-* One of them is delete and this is a http verb, so http method which makes a lot of sense for deleting. Now it's only a semantic thing,we could use post, you can in general use any http verb to do anything because you define with your server side logic.
-
-* but it makes sense to try to be clear about your intention and there is a delete verb, we can now use it
+* Add Controller function for this checkout screen
 
 ```js
-// routes/admin.js
-router.delete('/product/:productId', isAuth, adminController.deleteProduct);
-```
-* Now we can add our logics in admin controller 
-
-```js
-exports.deleteProduct = (req, res, next) => {
-  const prodId = req.params.productId;
-  Product.findById(prodId)
-    .then(product => {
-      if (!product) {
-        return next(new Error('Product not found.'));
-      }
-      // here we are deleting the product image
-      fileHelper.deleteFile(product.imageUrl);
-
-      // here we are deleting the product form DB
-      return Product.deleteOne({ _id: prodId, userId: req.user._id });
-    })
-    .then(() => {
-      console.log('DESTROYED PRODUCT');
-      // !!!!****** now we return json responses because we don't want to render a new page, we just want to return some data.
-      res.status(200).json({message: "Success!"})
-      // !!!!****** i will not redirect, just will update the response in current page
-      // res.redirect('/admin/products');
+exports.getCheckout = (req, res, next) => {
+    // this code similar as get chart please refer that
+  req.user
+    .populate('cart.items.productId')
+    .execPopulate()
+    .then(user => {
+      const products = user.cart.items;
+      let total = 0;
+      products.forEach(p => {
+          // here we are calculating the total price
+        total += p.quantity * p.productId.price;
+      });
+      res.render('shop/checkout', {
+        path: '/checkout',
+        pageTitle: 'Checkout',
+        products: products,
+        totalSum: total
+      });
     })
     .catch(err => {
-      // !!!!****** now we return json responses because we don't want to render a new page, we just want to return some data.
-      res.status(500).json({message: "Deleting Product Failure!"})
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
     });
 };
 ```
 
-* now we need to send the request there from inside our client side admin.js file, so in the public
-folder
+* now we can use the totalSum and product details in checkout.ejs file
 
 ```js
-const deleteProduct = (btn) => {
-    const prodId = btn.parentNode.querySelector('[name=productId]').value;
-    const csrf = btn.parentNode.querySelector('[name=_csrf]').value;
-    // Here we can use the fetch method which is a method supported by the browser for sending http requests and it's not just for fetching data as the name might suggest, it's also for sending data.
+<%- include('../includes/head.ejs') %>
+    <link rel="stylesheet" href="/css/cart.css">
 
-    // /admin beacuse we are using admin route with default /admin ..
+    </head>
 
-    fetch('/admin/product/' + prodId, {
-        method: 'DELETE',
-        // Well we can set headers and in the headers, we could encode
+    <body>
+    <%- include('../includes/navigation.ejs') %>
+    <main>
+        <ul class="cart__item-list">
+            <% products.forEach(p => { %>
+                <li class="cart__item">
+                    <h1><%= p.productId.title %></h1>
+                    <h2>Quantity: <%= p.quantity %></h2>
+                </li>
+            <% }) %>
+        </ul>
+        <div class="centered">
+            <h2>Total: <%= totalSum %></h2>
+        </div>
+    </main>
+<%- include('../includes/end.ejs') %>
+```
 
-        // our csrf token because we still need to attach this to our request and right now we are not doing that.
+* we need a link for this checkout page let us add it in cart.ejs
+
+```html
+<div class="centered">
+    <!-- <form action="/create-order" method="POST">
         
-        // We cannot send it in the request body because delete requests don't have a body
-        
-        // but the good thing is the csurf package which we are using on a server does not just look into request bodies,
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>"/>
+        <button type="submit" class="btn">Order Now!</button>
+    </form> -->
+    <a class="btn" href="/checkout">Order Now!</a>
+</div>
+```
+### Using Stripe in Your App
 
-        headers: {
-            'csrf-token': csrf
-        }
-        })
-        .then(result => {
-            // here we returing result as json
-            return result.json();
-        })
-        .then(data => {
-            console.log(data);
-            // here we are finding and remove article once backende removed here this code removes that article from the DOM
-            productElement.parentNode.removeChild(productElement);
-        })
-        .catch(err => {
-            console.log(err);
+* First create stripe account : https://dashboard.stripe.com/login
+
+* Once login under develper we could bunch of API keys : https://dashboard.stripe.com/test/apikeys which we will need to add stripe .
+
+* Initially it will be test data, we can switch to actual data while we are moving to the actual production.here for learning we will proceed with test data.
+
+* Now go back to Home and click "Grow your online business with Payments", this takes us to the "https://stripe.com/docs/payments"
+
+* It turns out that you have various different ways of implementing payments with stripe and of course you can check out their entire documentation to learn all about the different ways of collecting payments.
+
+* Now here we can go to Building with stripe "https://stripe.com/docs/stripe-js", Just follow the stripe instructions.
+
+* Add stripe HTML in our checkout.ejs
+
+```js
+// checkout.ejs
+div class="centered">
+    <button id="order-btn" class="btn">ORDER</button>
+    <script src="https://js.stripe.com/v3/"></script>
+    <script>
+        var stripe = Stripe('pk_test_aG8PUxRBozhibKb2xs4Sur0700Uv7qhR0e');
+        var orderBtn = document.getElementById('order-btn');
+        // here onclick button we redirecting to stripe
+        orderBtn.addEventListener('click', function() {
+            stripe.redirectToCheckout({
+                // we will get sessionId from getCheckout function
+                sessionId: '<%= sessionId %>'
+            });
         });
+    </script>
+</div>
+```
+
+* To prepare the sessionId in controller action we have to install 
+
+```js
+npm install --save stripe
+```
+* This is now a package which we can use on our server side code. So in node J.S.
+
+```js
+// here we using secret key which we should use only in our node app , we should not expose this to others
+// i changed this key after developement, this key won't work for you..
+const stripe = require('stripe')('sk_test_sad8iflYtQsdsadasd6114IHaaQjJso003Hasdasdasd4zV40W');
+
+exports.getCheckout = (req, res, next) => {
+  // we added the below let product and total, simply to make it available everywhere, Previously this is will be accessble only inside the then block now we can access this everywhere inside this function.
+  let products;
+  let total = 0;
+
+  req.user
+    .populate('cart.items.productId')
+    .execPopulate()
+    .then(user => {
+      products = user.cart.items;
+      total = 0;
+      products.forEach(p => {
+        total += p.quantity * p.productId.price;
+      });
+      // Remember we needed such a session key in our template. Now here we're going to create such a session which ultimately gives us such a key to create you parse an object where you configure that session.
+      return stripe.checkout.sessions.create({
+        // payment type here is card
+        payment_method_types: ['card'],
+        // here we are populate line items
+        line_items: products.map(p => {
+          return {
+            name: p.productId.title,
+            description: p.productId.description,
+            // here we multiplied with 100 because we should specify with "CENTS" which is like paise in india
+            amount: p.productId.price * 100,
+            currency: 'usd',
+            quantity: p.quantity
+          };
+        }),
+        // req.protocol  which is a property again I can get from this request object express,which is simply http/https
+        // req.get('host') ---> This will give us our host address.or later once we deployed it the IP address domain of the host deployed it on to
+        success_url: req.protocol + '://' + req.get('host') + '/checkout/success', // => http://localhost:8000
+        cancel_url: req.protocol + '://' + req.get('host') + '/checkout/cancel'
+      });
+    })
+    .then(session => {
+      res.render('shop/checkout', {
+        path: '/checkout',
+        pageTitle: 'Checkout',
+        products: products,
+        totalSum: total,
+        // here we are passing sessionId to View
+        sessionId: session.id
+      });
+    })
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
+};
+
+```
+* Checkout success or checkout cancel well these routes might not exist yet.lets add those routes
+
+```js
+router.get('/checkout/success', shopController.getCheckoutSuccess);
+
+router.get('/checkout/cancel', shopController.getCheckout);
+
+```
+* If success we have to create an new function, if it fails we will redirect back to getCheckout action.
+
+```js
+// here we did the same thing we did for post order before, now we are not using post order..
+exports.getCheckoutSuccess = (req, res, next) => {
+  req.user
+    .populate('cart.items.productId')
+    .execPopulate()
+    .then(user => {
+      const products = user.cart.items.map(i => {
+        return { quantity: i.quantity, product: { ...i.productId._doc } };
+      });
+      const order = new Order({
+        user: {
+          email: req.user.email,
+          userId: req.user
+        },
+        products: products
+      });
+      return order.save();
+    })
+    .then(result => {
+      return req.user.clearCart();
+    })
+    .then(() => {
+      res.redirect('/orders');
+    })
+    .catch(err => {
+      const error = new Error(err);
+      error.httpStatusCode = 500;
+      return next(error);
+    });
 };
 ```
-* Here we can use the fetch method which is a method supported by the browser for sending http requests and it's not just for fetching data as the name might suggest, it's also for sending data.
+* Now our order success and redirected back to checkout/success but this approach has a flaw currently in the end we confirm that an order was successful.by simply running the logic and get checkout success that we can always trigger that if we just manually route to this page.
+If I add a product to the card again and now I don't order it but I simply go to slash checkout slash success here does all this exceeds my card is empty and I placed the order without paying for it.
 
-*  Well we can set headers and in the headers, we could encode our csrf token because we still need to attach this to our request and right now we are not doing that.We cannot send it in the request body because delete requests don't have a body but the good thing is the csurf package which we are using on a server does not just look into request bodies,
+* But it won't show payment in stripe, we can only see succeeded order details with item display.
 
-* Now one important note by the way, I'm not sending any json data with my request here because it
-is a delete request without a post body. If it were and that is something we will see in the rest API section, then I would have to parse json data in my backend
+* This stripe and DB we could compare and see the fradulent order but ofcourse for large scale data its not easy to compare 
 
-* because there right now and that's just an important note, in app.js, there right now we only have two parsers, one for url encoded data which we don't have when we send json data and one for multipart data which we also don't have there.
+* But its already mentioned in the stripe doc about this corn "You should not depend on success URL alone, Make sure the payment done"
 
-* We would have to add a new body parser that is able to handle json data and extract that from incoming requests. I don't add it here because we don't need it here
+* as your application grows. Web hooks here would actually be the preferred solution.The idea here is that you can configure stripe such that it sends a request to a URL of your choice which you would have to manage here in your application with routing and that tells you that the order succeeded because a stripe sends you that request behind the scenes.It does not to send the request to a URL of your page.Anyone can enter.
 
-```js
-// console.js
-// I get a response with a status code of 200, with request body which is a readable stream,I showed you how to get to that request body
-Response {type: "basic", url: "http://localhost:8000/admin/product/5df5ea21a2ee147b7f13f946", redirected: false, status: 200, ok: true, …}
-body: ReadableStream
-bodyUsed: false
-headers: Headers {}
-ok: true
-redirected: false
-status: 200
-statusText: "OK"
-type: "basic"
-url: "http://localhost:8000/admin/product/5df5ea21a2ee147b7f13f946"
-__proto__: Response
-```
-* Note: Here page didn't reloaded just the existing page updated.
+* Setting up webhook is bit more complex.. but we can't test it now..
 
-* The important thing here is that you can send data to your backend with the help, with these asynchronous requests and how you can include data and how you can handle that on the backend.
 
-### Useful resources:
 
-* More on the fetch API: https://developers.google.com/web/updates/2015/03/introduction-to-fetch
-
-* More on AJAX Requests: https://developer.mozilla.org/en-US/docs/Web/Guide/AJAX/Getting_Started
