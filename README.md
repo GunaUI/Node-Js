@@ -131,3 +131,345 @@ componentDidMount() {
 
 ### Identifying Realtime Potential
 
+* Now let's actually start with the client. Let's say we want to react to a new post being created and we then want to render it in the client instantly.
+
+* For that in react app after component did mount function before loads lets say i will add a new function addPost
+
+```js
+  addPost = post => {
+    this.setState(prevState => {
+      const updatedPosts = [...prevState.posts];
+      if (prevState.postPage === 1) {
+        if (prevState.posts.length >= 2) {
+          updatedPosts.pop();
+        }
+        updatedPosts.unshift(post);
+      }
+      return {
+        posts: updatedPosts,
+        totalPosts: prevState.totalPosts + 1
+      };
+    });
+  };
+```
+* Now we got ADD post but we're never calling it. My idea is that I want to call it whenever we do create a new post on some other client. Now how do we do that well. For that let's go back to the node code. We have to go to the place that's runs or to the code that runs when a new post is created. There we want to use socket.
+
+* I owed the already existing connection we have set up to basically inform all connected clients about the new host that is the idea
+
+* Now for that however we need to share that connection which we currently set up. How do we get that connection out of actually into feature.
+
+### Sharing the IO Instance Across Files
+
+* To be able to read was one and the same I O object that manages the same connection that is exposed.
+
+```js
+// socket.js
+let io;
+
+module.exports = {
+  init: httpServer => {
+    io = require('socket.io')(httpServer);
+    return io;
+  },
+  getIO: () => {
+    if (!io) {
+      throw new Error('Socket.io not initialized!');
+    }
+    return io;
+  }
+};
+```
+* Now we have to use this functions in our app.js to initiate connections
+
+```js
+mongoose
+  .connect(
+    'mongodb+srv://maximilian:9u4biljMQc4jjqbe@cluster0-ntrwp.mongodb.net/messages?retryWrites=true'
+  )
+  .then(result => {
+    const server = app.listen(8080);
+    // here we are using socket.js and its init function to initiate socket io
+    const io = require('./socket').init(server);
+    io.on('connection', socket => {
+      console.log('Client connected');
+    });
+  })
+```
+* we can import this in all the places of our app where we need to be able to interact with IO
+
+### Synchronizing POST Additions
+
+* Now we have a way of sharing our I O connections across multiple files.
+
+* In feed.js controller i want to use socket.js file
+
+```js
+const io = require('../socket');
+
+exports.createPost = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+  if (!req.file) {
+    const error = new Error('No image provided.');
+    error.statusCode = 422;
+    throw error;
+  }
+  const imageUrl = req.file.path;
+  const title = req.body.title;
+  const content = req.body.content;
+  const post = new Post({
+    title: title,
+    content: content,
+    imageUrl: imageUrl,
+    creator: req.userId
+  });
+  try {
+    await post.save();
+    const user = await User.findById(req.userId);
+    user.posts.push(post);
+    await user.save();
+    // here we are emitting post created socket from backend 
+    // now there are a couple of helpful methods socketio gives us, one of them is emit and broadcast
+    // emit will now send a message to all connected users.
+    // broadcast will send data to all connected sockets except the one that originally emitted the event
+    // posts is event name
+    io.getIO().emit('posts', 
+    // below is data channel we want to send to front end
+    {
+      // create - action name
+      action: 'create',
+      post: { ...post._doc, creator: { _id: req.userId, name: user.name } }
+    }
+    );
+    res.status(201).json({
+      message: 'Post created successfully!',
+      post: post,
+      creator: { _id: user._id, name: user.name }
+    });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+```
+* Now server side changes done, we have receive this emitted changes in our front end code.
+
+```js
+componentDidMount() {
+    fetch('http://localhost:8080/auth/status', {
+      headers: {
+        Authorization: 'Bearer ' + this.props.token
+      }
+    })
+      .then(res => {
+        if (res.status !== 200) {
+          throw new Error('Failed to fetch user status.');
+        }
+        return res.json();
+      })
+      .then(resData => {
+        this.setState({ status: resData.status });
+      })
+      .catch(this.catchError);
+
+    this.loadPosts();
+
+    // So in component did mount ofter opening my socket I would actually store something which is returned by open socket and that is my socket.
+
+    const socket = openSocket('http://localhost:8080');
+    socket.on('posts', data => {
+      if (data.action === 'create') {
+        this.addPost(data.post);
+      }
+    });
+  }
+
+  addPost = post => {
+    this.setState(prevState => {
+      const updatedPosts = [...prevState.posts];
+      if (prevState.postPage === 1) {
+        if (prevState.posts.length >= 2) {
+          updatedPosts.pop();
+        }
+        updatedPosts.unshift(post);
+      }
+      return {
+        posts: updatedPosts,
+        totalPosts: prevState.totalPosts + 1
+      };
+    });
+  };
+
+```
+###  Updating Posts On All Connected Clients
+
+```js
+exports.updatePost = async (req, res, next) => {
+  const postId = req.params.postId;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+  const title = req.body.title;
+  const content = req.body.content;
+  let imageUrl = req.body.image;
+  if (req.file) {
+    imageUrl = req.file.path;
+  }
+  if (!imageUrl) {
+    const error = new Error('No file picked.');
+    error.statusCode = 422;
+    throw error;
+  }
+  try {
+    const post = await Post.findById(postId);
+    if (!post) {
+      const error = new Error('Could not find post.');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (post.creator.toString() !== req.userId) {
+      const error = new Error('Not authorized!');
+      error.statusCode = 403;
+      throw error;
+    }
+    if (imageUrl !== post.imageUrl) {
+      clearImage(post.imageUrl);
+    }
+    post.title = title;
+    post.imageUrl = imageUrl;
+    post.content = content;
+    const result = await post.save();
+    // socket IO
+    io.getIO().emit('posts', { action: 'update', post: result });
+    res.status(200).json({ message: 'Post updated!', post: result });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+```
+
+* In frontend
+
+```js
+ componentDidMount() {
+    fetch('http://localhost:8080/auth/status', {
+      headers: {
+        Authorization: 'Bearer ' + this.props.token
+      }
+    })
+      .then(res => {
+        if (res.status !== 200) {
+          throw new Error('Failed to fetch user status.');
+        }
+        return res.json();
+      })
+      .then(resData => {
+        this.setState({ status: resData.status });
+      })
+      .catch(this.catchError);
+
+    this.loadPosts();
+    const socket = openSocket('http://localhost:8080');
+    socket.on('posts', data => {
+      if (data.action === 'create') {
+        this.addPost(data.post);
+      }else if (data.action === 'update') {
+        this.updatePost(data.post);
+      }
+    });
+  }
+
+  addPost = post => {
+    this.setState(prevState => {
+      const updatedPosts = [...prevState.posts];
+      if (prevState.postPage === 1) {
+        if (prevState.posts.length >= 2) {
+          updatedPosts.pop();
+        }
+        updatedPosts.unshift(post);
+      }
+      return {
+        posts: updatedPosts,
+        totalPosts: prevState.totalPosts + 1
+      };
+    });
+  };
+
+  updatePost = post => {
+    this.setState(prevState => {
+      const updatedPosts = [...prevState.posts];
+      const updatedPostIndex = updatedPosts.findIndex(p => p._id === post._id);
+      if (updatedPostIndex > -1) {
+        updatedPosts[updatedPostIndex] = post;
+      }
+      return {
+        posts: updatedPosts
+      };
+    });
+  };
+```
+
+###  Deleting Posts Across Clients
+
+* delete post controller action 
+
+```js
+exports.deletePost = async (req, res, next) => {
+  const postId = req.params.postId;
+  try {
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      const error = new Error('Could not find post.');
+      error.statusCode = 404;
+      throw error;
+    }
+    if (post.creator.toString() !== req.userId) {
+      const error = new Error('Not authorized!');
+      error.statusCode = 403;
+      throw error;
+    }
+    // Check logged in user
+    clearImage(post.imageUrl);
+    await Post.findByIdAndRemove(postId);
+
+    const user = await User.findById(req.userId);
+    user.posts.pull(postId);
+    await user.save();
+    io.getIO().emit('posts', { action: 'delete', post: postId });
+    res.status(200).json({ message: 'Deleted post.' });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+```
+
+* In Frontend
+
+```js
+ socket.on('posts', data => {
+      if (data.action === 'create') {
+        this.addPost(data.post);
+      }else if (data.action === 'update') {
+        this.updatePost(data.post);
+      } else if (data.action === 'delete') {
+        this.loadPosts();
+      }
+    });
+```
+
