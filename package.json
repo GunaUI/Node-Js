@@ -1,29 +1,40 @@
 {
-  "name": "node-complete-social-network-prep",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "express-graphql": "^0.9.0",
-    "graphql": "^14.5.8",
-    "react": "^16.5.2",
-    "react-dom": "^16.5.2",
-    "react-router-dom": "^4.3.1",
-    "react-scripts": "2.0.4",
-    "socket.io-client": "^2.1.1"
-  },
+  "name": "nodejs-complete-guide",
+  "version": "1.0.0",
+  "description": "Complete Node.js Guide",
+  "main": "app.js",
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "NODE_ENV=production MONGO_USER=maximilian MONGO_PASSWORD=9u4biljMQc4jjqbe MONGO_DEFAULT_DATABASE=shop STRIPE_KEY=sk_test_T8OE02SHDZWLwk4TYtrWlsat node app.js",
+    "start-server": "node app.js",
+    "start:dev": "nodemon app.js"
   },
-  "eslintConfig": {
-    "extends": "react-app"
+  "author": "Maximilian Schwarzmüller",
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^1.18.3"
   },
-  "browserslist": [
-    ">0.2%",
-    "not dead",
-    "not ie <= 11",
-    "not op_mini all"
-  ]
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.18.3",
+    "connect-flash": "^0.1.1",
+    "connect-mongodb-session": "^2.0.3",
+    "csurf": "^1.9.0",
+    "ejs": "^2.6.1",
+    "express": "^4.16.3",
+    "express-handlebars": "^3.0.0",
+    "express-session": "^1.15.6",
+    "express-validator": "^5.3.0",
+    "helmet": "^3.21.2",
+    "mongodb": "^3.1.6",
+    "mongoose": "^5.2.17",
+    "multer": "^1.4.0",
+    "mysql2": "^1.6.1",
+    "nodemailer": "^4.6.8",
+    "nodemailer-sendgrid-transport": "^0.2.0",
+    "pdfkit": "^0.8.3",
+    "pug": "^2.0.3",
+    "sequelize": "^5.0.0-beta.11",
+    "stripe": "^6.12.1"
+  }
 }
