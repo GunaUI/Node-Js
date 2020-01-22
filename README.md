@@ -1,451 +1,802 @@
 # Node-Js
 
-## Application Type
+## Testing 
 
-### Which kind of application ??
+### What is testing ?? 
 
-* 1. Server side rendered view - Vannila HTML, Template Engine(EJS)
+* Manual testing is super important but there also is a downside.It's easy to forget to test something.And that is where automated testing comes into picture that means we write code that tests our code.
 
-* 2. API - GraphQL, REST
+* So we define steps that are executed. We define certain scenarios that are tested and we automatically run these tests on every change or
+offer every important change we made.So we can run them whenever we want.We can even put them into our deployment process and run them right before our app gets deployed.
 
-* when we look at it from a technical perspective. In both kinds of applications we start a normal node server and we use a node framework.
-In this case the most popular one express and therefore these types of applications have the same hosting requirements.
+* The big advantage of automated testing therefore of course is that we can cover all core features and we can find all possible scenarios you want to test and therefore really make sure that we don't introduce
+breaking changes.
 
-* We dont have to make a difference here because in the end when we move our code to a web server then, there we also just want to do the exact same thing we did locally will start our node server and wait
-for incoming requests and therefore we dont have to differentiate between these kinds of applications.
+* But of course there are downsides to automated testing too.If you ride the wrong tests then you might have a good feeling because all your tests are passing but maybe you're just testing for the wrong things for the wrong scenarios.Additionally while you only test what you define end it's also hard to test the user interface.
 
-* When it comes to deployment we simply deploy our code start to know its server and we are good to go.
+### Why & How?
 
-### Deployment Preparations
+* automated tests allows us to automatically test everything and there
+is a star behind that because we only test what we define so only the tests we write.But in theory it allows you to test everything in your application.
 
-* Now this obviously always depends on the kind of application you're building.
+* After every code adjustment after every code change therefore it's easy to detect breaking changes even in places you might not have expected to break upon your latest changes.
 
-* In general you want to use something which is called environment variables - use environment variables instead of hard coding
-certain values like API keys. port numbers passwords and so on into your code.
+* And with automated tests we ensure that we have predictable clearly defined testing steps.
 
-* Also make sure that if you are using some third party services like stripe that you use the production API keys and not the development keys.
+* Our tests obviously always run in the exact same ways and we define all the steps in code and that of course ensures that we can rely on the scenario always being the same.
 
-* Now we also might have some mechanisms to handle errors or log something and there we want to make sure that we reduce the error output details. We don't want to send sensitive info to our users.
+* If you are manually testing your app you might think you're doing the same thing as you did the last time.But in reality you might not be doing that because you forgot a step.So that is why you should test.
 
-* Regarding the responses your application sends you want to make sure that you set secure response headers. There are some response headers you can add to any response which don't hurt, which prevent the declines from doing certain things and so on and they are for setting these headers won't hurt.we will see that shortly...
+* How do you then set up your node project for testing. for that you typically need a couple of tools.
 
-* Now in a typical node application you might also be serving some assets some javascript some CSS files and they're adding compression can be a good idea because that will reduce your response size or therefore also your response time because the client has to download less.
+* It should also give you a nice output that tells you whether your tests all pass or if a test failed.this is the first tool
 
-* You also want to configure logging so that you are aware of what's happening on your server. Since we're now not testing the testing anymore but real users do interact with it we certainly want to log interactions into log files that we can look into at any time. We feel like it.
+* The second tool is one that does not just run our code but that also allows us to define certain conditions that have to be met.So we want to validate the test outcome.
 
-* And last but not least SSL/TLS. So encryption off data in transit is also something we will see shortly.. for our learning we used HTTP server and therefore our communication with the server was not encrypted for testing this is obviously fine. Now for a production ready app it's strongly recommended that you do encrypt your connections and therefore we will see how to turn data on in your node express application.
+* but for running these tests one popular framework is "mocha" and we'll use mocha.
 
-* It's also worth mentioning that the last free points year compression logging and SSL are off the handled by your hosting provider and I will talk about that when we choose a hosting provider because often are typically you want to use some managed service where these things are all managed for you so that
-you don't have to worry too much about that.I'll still show you how to enable it manually but it might be worth noting that you probably don't have
-to do that when deploying your application.
+* for asserting the results and defining conditions "Chai" is a popular choice and we'll use that in this module too.
 
-### Using Environment Variables
+* one other tool we need when it comes to managing side effects or working with external dependencies or certain complex scenarios.
+There will use "sinon" which is a tool that allows us to create steps or mocha.
 
-* So does this not the rest API does not grant you an API. This is a shop(ejs) as we built it.Let's first of all explored that environment variables thing I was talking about.
+### Setup and Writing a First Test
 
-* what would we control in an environment variable. And what is an environment variable 
+* Now obviously testing different kinds of node applications like a graph QoL API all have their own specialties and special complexity and this is only an introductory module
 
-* Now environment variables are a concept supported by no chase where we can pass certain configurations certain values into our node application from outside.So we don't hard code certain values into our node code.
+* here the core ideas the core concepts the way of thinking about testing and the general setup that will always be the same no matter which node application you're building and therefore is the super important start into testing that you need to then really master testing.
 
-* Instead the values will be injected when our node service starts and that allows us to use different
-values in development and production and also to conveniently change the values in production without having to redeploy our entire code. 
-
-* eg : MONGODB_URI here we are hardcoding password and user name, and also in app listening port. but in production we want to let our server or our hosting provider set this port details and another example is stripe API key
-
-* So let's use some environment variables and using them is straight forward.
-
-* And now here we can access environments variables on the "process" object and this object is not defied by us but this is globally available in the node app.
-
-* Now on this proses object we have the env object , that is now an object with all the environment variables.
-
-* This node process knows there are a bunch of default env variables but we can also set our own ones.
+* first of all have to set up our testing environment with mocha ("https://mochajs.org/")and chai ("https://www.chaijs.com/"). 
 
 ```js
-const MONGODB_URI =
-  `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASSWORD}@cluster0-ntrwp.mongodb.net/${process.env.MONGO_DEFAULT_DATABASE}`;
+npm install --save-dev mocha chai 
 ```
-
-* regarding port 
+* These are two tools we need to get started. So let's install them here and let's wait for that to finish and with the installation process finished. Let's start writing our first tests now for that
+First of all let's go to the package.json file in there you should have test script.
 
 ```js
-mongoose
-  .connect(MONGODB_URI)
-  .then(result => {
-      // 3000 is default value
-    app.listen(process.env.PORT || 3000);
-  })
-  .catch(err => {
-    console.log(err);
-  });
+ "scripts": {
+    "test": "mocha",
+    "start": "nodemon app.js"
+  }
 ```
+* This dependence you just installed without any other configuration.
 
-* Now for stripe
+* Now you can run
 
 ```js
-const stripe = require('stripe')(process.env.STRIPE_KEY);
+npm test
 ```
+* this will now run all your tests you defined in this project.But of course here it's going to complain that it didn't find any test files.
+The reason for that is that mocha by default looks for a folder named test.So let's add one and it has to be named "test" not testssssss.
 
-* Now we do try to read these environment variables in our node code. How can we now pass them into node ? while we do that when we run our node application, with nodemon we can provide a configuration file.
+* Now let's start very simple and I'll name it starts.js.
 
 ```js
-// nodemon js
-{
-    "env": {
-        "MONGO_USER": "guna",
-        "MONGO_PASSWORD": "0987654334567",
-        "MONGO_DEFAULT_DATABASE": "shop",
-        "STRIPE_KEY": "sk_test_T8OE02SHDZWLwk4TYtrWlsat"
+// start.js
+// We import function of this named expect you do this by requiring chai and there the expect function.
+const expect = require('chai').expect;
+// it is a function provided by mocha
+
+it('should add numbers correctly', function() {
+    const num1 = 2;
+    const num2 = 3;
+    // chai object
+    expect(num1 + num2).to.equal(5);
+})
+
+it('should not give a result of 6', function() {
+    const num1 = 3;
+    const num2 = 3;
+    expect(num1 + num2).not.to.equal(6);
+})
+```
+### "it"
+* Now "it" might look like a strange function name but the idea here is that you give your tests name and they read like plain English sentences because indeed it takes two arguments and the first one is a string which simply describes your test.
+
+* And this is something which you'll later see as an output for your test which will help you identify which tests failed and which tests succeeded.So obviously this should be a title that kind of describes what's happening in the test.
+
+### "expect" chai condition
+
+* So how can we now check if our tests exceed succeeded. How can we now define success condition.Well that happens with the help of Chai 
+
+* mocha is responsible for running our tests and for giving us this it function that defines where we define our test code.
+
+* Chai is responsible for defining our success conditions and for this we just need to import something from Chai here.
+
+*  if you dive into the guide here or into the API docs well then of course you can learn all about expecting and you can see what you can change so that you can say to equal to B or whatever you want.
+
+### Testing the Auth Middleware
+
+* We're testing some dummy code and we're defining everything our test relies on directly in the test.They have this test runs stand alone totally detached from our application and whether the test succeeds or fails it only depends on the testing code itself which of course is a test you should admit. It's not a helpful test.
+
+* In reality you want to test your application code and you want a test code that's not entirely defined here and your test instead in your tests you typically only define your success condition.
+
+* You can by the way  have multiple success conditions multiple expectations and you might define any additional setup you need for that test.
+
+* let's write a more realistic and more helpful test.
+
+* of course want to call our off middleware manual here because we're not simulating a full request flow. We're not simulating a click of the user which then sends a request which then triggers the middleware.
+
+* We just want to test our middleware function. This is called a unit test by the way we test one unit of our application.
+
+* An integration test would be where we test a more complete flow.
+
+* So where we maybe test whether your request is routed correctly and then all of the middleware and then also the controller function but you don't test that too often because it's very complex to test such long chains.
+
+* There are multiple things that could fail. And by writing unit tests it's way easier to test different scenarios for each unit.
+
+* And if all your unit tests succeed you have a great chance of your overall application working correctly. And data from writing unit test is very helpful. If a unit test fails it's also easy to find out why it failed. If you have a lot of steps and involved it might be harder to find out which step failed.
+
+* So we're testing this middleware functional need and that of course means that we have to create a dummy request object we pass in because normally that's passed in by the Express middleware just like responds and next.
+
+* But now since we're directly calling our middleware function we want to define our own request object and that is actually great because that allows us to define different scenarios.
+
+* Now in reality this get method here provided by Express is way more complex of course it does not only scan headers it scans different parts of the incoming request
+
+*  but our goal now is not to replicate the express framework,  but to test one specific scenario and here this scenario is that get authorisation does not return an authorisation header because that is what we want to test here.
+
+```js
+// auth-middleware.js
+
+const expect = require('chai').expect;
+
+const authMiddleware = require('../middleware/is-auth');
+
+// But the first simple test could be that we want to make sure that we really get an error whenever this year does not have an authorization header
+
+it('should throw an error if no authorization header is present', function() {
+    // here I can create a request object 
+  const req = {
+      // headerName value of the Authorization header, but we don't really care about this.
+    get: function(headerName) {
+        // this means it does not return a value for our authorization call here.
+      return null;
     }
-}
+  };
+  // {} is empty response object
+  // () => {} is next function we don't care about what it does because we're not really executing on next step here anyways.
+  //.to.throw that's all just another utility method you can find official doc I expect dad to throw an error with the message
+
+// we should not call authMiddleware directly by ourself , "bind" will enable mocha and chai to bind authMiddleware and call by themselves
+
+  expect(authMiddleware.bind(this, req, {}, () => {})).to.throw(
+    'Not authenticated.'
+  );
+});
+
 ```
-* Now these are still the development values but nonetheless we have that set up.
+* I don't want to call it myself.I want to let my testing framework. So want let mocha and Chai these two tools I want and let these. Call this function for me so that they can handle the flow
 
-* Now of course we're not always using gnomon and especially when deploying to app will not be using it because there we don't want to restart the server on every change because it will not change to code anyways, what I'll do is I'll add a new start script to my package.js
+* So instead of calling off middleware directly ourselves here we instead only pass a reference to this function here to our expect function. we only want to bind the arguments we eventually want to pass in when our testing set up calls this function.
 
+* Bind first of all requires input for the "this" keyword that can be this and then it has the free arguments. So we're not calling it ourselves here. We're instead passing a prepared reference to our function to expect.
+
+* this will not succeed if we didn't throw error from our middleware
 ```js
-"scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js",
-    "start-server": "node app.js",
-    "start:dev": "nodemon app.js"
-},
-```
-* And typically when using a hosting provider you can set up the environment variables in the dashboard
-of your hosting provider.That is something we'll see later.
-
-* But if you're not using that(nodemon) well then you can. As a simple solution simply take decide value pairs you want to set up and add them in your package.json in front of the start script.
-
-```js
-"scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_ENV=production MONGO_USER=maximilian MONGO_PASSWORD=9u4biljMQc4jjqbe MONGO_DEFAULT_DATABASE=shop STRIPE_KEY=sk_test_T8OE02SHDZWLwk4TYtrWlsat node app.js",
-    "start-server": "node app.js",
-    "start:dev": "nodemon app.js"
+// from middleware
+if (!authHeader) {
+    // this error message also should match with expect error message in test file,ie correct error message should be thrown
+    const error = new Error('Not authenticated.');
+    error.statusCode = 401;
+    throw error;
   }
 ```
 
-* because express js we'll actually use that by default to determine the environment mode and if you set that to production express js will change certain things. And for example it will reduce the details for errors it throws and in general optimized some things for deployment.So you want to set those when running your app in production.And again hosting providers typically do that for you.
+###  Organizing Multiple Tests
 
-###  Using Production API Keys
-
-* Now I did mention that you also want to exchange testing keys for production keys, Now you need to activate your account to production mode , for that you have to fill out some information including some payment information.and once you filled it out you will be able to switch that toggle from test to production for life data production ready
-
-### Setting Secure Response Headers with Helmet
-
-* Now we already prepared some things for production.
-
-* Let me now dive into that secure a header's thing and for will use a third party package which is called helmet and you can use it to secure your node express applications.("https://github.com/helmetjs/helmet")
-
-* And in the end what this will do is this package will add certain headers to the responses you sent back and it follows best practices for doing so.
-
-* You'll see which attack patterns or which security issues these are against which it protects you by
-setting the right headers.("https://helmetjs.github.io/")
+* Actually we are splitting token with space "bearer tokenstring" That is how we send our tokens. That is how we send that authorisation header 
 
 ```js
-npm install --save helmet
+const expect = require('chai').expect;
+
+const authMiddleware = require('../middleware/is-auth');
+// describe functions there to group your tests and you can nest as many described function calls as you want. even inside describe you could add another describe with test cases.
+
+// described grouping to make our code more readable and easier to understand.
+
+describe('Auth middleware', function() {
+  it('should throw an error if no authorization header is present', function() {
+    const req = {
+      get: function(headerName) {
+        return null;
+      }
+    };
+    expect(authMiddleware.bind(this, req, {}, () => {})).to.throw(
+      'Not authenticated.'
+    );
+  });
+  it('should throw an error if the authorization header is only one string', function() {
+    const req = {
+      get: function(headerName) {
+          // Now it's not null anymore but it's only one string
+        return 'xyz';
+      }
+    };
+    // And I expect that to throw error now you could check for an exact error message but if you're not sure or if you only care about whether an error is thrown at all, just leave it like this without passing any argument to it. 
+    expect(authMiddleware.bind(this, req, {}, () => {})).to.throw();
+  });
+});
+
 ```
-* you can use by simply including it as a middleware and then it will automatically run on all incoming requests 
+###  What Not To Test!
+
+* In is-auth middleware , what about our actual token verification now. How could we test this how can we make sure that this fails for incorrect tokens
 
 ```js
-const helmet = require('helmet');
-
-app.use(helmet());
+// ie here how can we test this ??
+decodedToken = jwt.verify(token, 'somesupersecretsecret');
 ```
+* Well there are a couple of important things to consider. 
 
-* Then run our app in terminal
+* First one is, You should not test whether the verify function works correctly. Why should you not test for that ? Because this is not a function or a method owned by you.
+This is coming from a third party package from json web token. We only want to test if our code behaves correctly
 
+* Well if this is a valid token then decoded token so does object it returns us should have a user I.D.. Well if we test this it should yield a user I.D. after decoding the token if we want to recreate such
+a test and we pass in our token and we hope that this is a valid token which it certainly is not just we us dummy value.
+
+* But for this dummy value before check userId property this will throw JWT error.
+
+* How can we shutting down that verify method ??
+
+###  Using Stubs
+
+* we essentially replace this verify method with a simpler method.
+
+* we could manually override the jwt verify by calling below code before authMiddleware call
 ```js
-npm run start:dev
+jwt.verify = function(){
+    return { userId : 'abc'}
+}
+
+ authMiddleware(req, {}, () => {});
 ```
-* Then if you inspect developer tool we could some special header which were added by helmet.
+* However instead of manually overriding Id like this there is a more elegant way because this has a huge downside.
 
-### Compressing Assets
+* downside is if we override jwt.verify that will be like global overide that will affect other test cases followed by this.
 
-* Now with response headers added let's make sure we serve optimized assets and for that we can use another
-package.("https://github.com/expressjs/compression#readme")
+* therefore instead of manually stopping or mocking functionalities and replacing them it's good to use packages that also allow you to restore the original setup for that we need sinon package
 
 ```js
-npm install --save compression
+npm install --save-dev sinon
 ```
-* Add this in app.js
+* sinon is a package that allows us to create a so-called stub, which is a replacement for the original function where we can easily restore the original function
 
 ```js
-const compression = require('compression');
-// Now you can configure it as mentioned in the official docs but you can just run it like this.
-app.use(compression());
-```
-* This will reduce file size, So this is compression in action and this is worth considering especially in apps where you have a lot of CSS and javascript code you are serving to your users or in general where a lot of files are served to your users by the way. Image files are not compressed here because that actually makes it longer to load them. But this is a nice addition.
 
-* I also want to note that again most hosting providers you might want to use have some support of compression built in or might at least offer this compression support which you can conveniently add there.
+const jwt = require('jsonwebtoken');
+// we need to import sinon
+const sinon = require('sinon');
 
-* So then they will compress assets on the fly and you don't have to do it with your own middleware and then you actually shouldn't do it.But in case your hosting provider does not support it or you're building your own server then this is a nice middleware which you can add.
+it('should yield a userId after decoding the token', function() {
+    const req = {
+      get: function(headerName) {
+          // we know that this is not a valid token
+        return 'Bearer djfkalsdjfaslfjdlas';
+      }
+    };
 
-### Setting Up Request Logging
+    // we need some way of shutting down that verify method, otherwise for our dummy token this will throw JWT error
 
-* For logging i will install a new package called morgan.("https://github.com/expressjs/morgan#readme")
+    // instaed of manual replace I pass in the object where I have the method I want to replace that is JWT
 
-```js
-npm install --save morgan
-```
-* Let us import morgan and use it as a middleware
+    // So I have two arguments here. JWT is the object that has the method verify is the actual method.Now sign and will replace that.
 
-```js
-const fs = require('fs');
+    sinon.stub(jwt, 'verify');
 
-const morgan = require('morgan');
+    // returns - this is now a method that was added by sinon and  returns allows us to configure what this function should return.
 
-// Now you find more in the official docs that simply defines which data is being locked and how it's formatted all go with combined.
+    jwt.verify.returns({ userId: 'abc' });
 
-// flags 'a' means append
-
-const accessLogStream = fs.createWriteStream(
-  path.join(__dirname, 'access.log'),
-  { flags: 'a' }
-);
-
-// accessLogStream - file to save logs..
-
-app.use(morgan('combined', { stream: accessLogStream }));
-```
-* But also as mentioned on the slide often logging is done by our hosting providers. So then this might not matter for you if you want or have to do it manually though this is a nice package where you can of course configure more as you can see in their official docs which allows you to log.
-
-* For a more advanced/ detailed approach on logging (with higher control), see this article: https://blog.risingstack.com/node-js-logging-tutorial/
-
-### Setting Up a SSL Server
-
-* Now lets see SSL/TLS and TLS is simply newer version of SSL, SSL is the term  more people know however both is about securing your data that is sent from a client to the server 
-
-* because when we communicate between client server we typically exchange data. Now we can have an attacker third party whose ease dropping on that data is technically possible.therefore does attack or could read your data which you're sending from the client to the server(Eavesdropping) which is of course a problem. If we're talking about credit card data or anything like that.
-
-* Hence we want to protect that data and we do that with SSL/TLS encryption.
-
-* Now one such encryption is in place eavesdropping is not possible anymore,because while the data is unreadable as long as it is in transit.
-
-* now to enable that encryption and to be able to decrypt it we work with a public private key pair.Both is known to the server.
-
-* Now that public key is as the name suggest not something we have to protect the private key is however the private key will ever only be known by the server because the private key will later be important for decrypting the data. The public key will be used for encrypting.
-
-* now in SSL certificate. We bind that public key to the server identity.
-
-* The server identity is simply something like the domain the admin email address you set that data when you create a certificate
-
-* That SSL certificate therefore connects a public key and a server and send that
-to the client to the browser so that the client also aware of the public key and know that it is belongs to that server.
-
-* you can create your own SSL certificates too and will do that in this module.
-
-* But when you create your own keys then the browser does not actually trust you that information in there is correct and that is when you get informations or warnings like hey does page uses SSL but doesn't seem to be secure. Do you really want to visit it.
-
-* Hence in production you would use the certificate provided by a known certificate authority which browser trusts and therefore you have a real secure and trusted protection.
-
-* We have that public key part of that certificate,  certificate idealy is not created by you, but by a trusted authority we will create it on our own though because that will be free.
-
-* that public key is then received by the client through the certificate and now the client can encrypt the data which it sends to the server and the server can decrypt the data with that private key and only that private key can decrypt that data.
-
-* And this is how that works and how that secures your data in transit.(Refer SSL Image)
-
-* Now let us see how it works in practice, Now to set up a SSL connection on your own server with their own certificate.Again you should get one from an authority once to apply that to production but for testing this we can definitely play around with our own one.
-
-* We need to create a certificate and we do it with a command
-
-```js
-// on mac and linux you have that available by default. On Windows you don't. But you can find it by googling for open SSL windows
-openssl req -nodes -new -x509 -keyout server.key -out server.cert
-```
-* On enter this will ask couple of questions. And one important value is just common name.You must set this to localhost otherwise the certificate will not work because this has to be set to your domain.
-
-* So if you were to use your self-signed certificate on the server you deploy your app to and you host this app on example.com then then you would have to set this to example.com
-
-* Again typically you request a certificate for your domain by some authority and then they will do this for you. But if you create your own one used the domain your app is running on and locally that is localhost and this certificate will be denied and he will not be accepted, If you set this to another value.
-
-* you'll find two new files and folder service cert which is the certificate and server key which is the private key, now  a private key will always stay on your server.The certificate is what we send to the client in the end.
-
-```js
-// in app.js
-
-// Thus far we directly or indirectly through app listen to http , Now we'll use HTTPS 
-
-const https = require('https');
-
-// you can read a file synchronously. Now this will block code execution until the file is read, and we learned that typically this is not what we want to do.
-
-// But here I actually don't want to continue with starting the server unless I have read that file.So here I will read  file synchronously
-
-const privateKey = fs.readFileSync('server.key');
-const certificate = fs.readFileSync('server.cert');
-
-mongoose
-  .connect(MONGODB_URI)
-  .then(result => {
-      // here we will not use app.listen we wil use https listen
-    https
-      // createServer to create https server
-      .createServer({ key: privateKey, cert: certificate }, app)
-      .listen(process.env.PORT || 3000);
-  })
-  .catch(err => {
-    console.log(err);
+    // we are calling authMiddleware manully here
+    authMiddleware(req, {}, () => {});
+    // after execute authMiddleware we expect property userId in req
+    expect(req).to.have.property('userId');
+    expect(req).to.have.property('userId', 'abc');
+    // this stub also registers things like function calls. So if you want to find out if this has been called at all.
+    expect(jwt.verify.called).to.be.true;
+    // after checking our expectation here we can now call JWT verify restore and this will now restore the original function.
+    jwt.verify.restore();
   });
 ```
-* browser does not accept that custom or that Self-Signed Certificate as you learned. But if you click on advanced your you can proceed to localhost and now again the browser does warn us because it does not like our self-signed certificate. But technically we are now using SSL protection and this is how you enable it.
 
-* typically you would set this up differently.You would let your hosting provider set this up because technically the hosting provider often also has its own service in front of yours and the servers of the hosting provider then use SSL and the traffic between your app and the in-between servers that use HTTP because it's blocked or it's not available to the public anyways and the hosting providers front services would implement this logic
+###  Testing Controllers
 
-* so you wouldn't write that code on your own. And indeed here I will fall back to my old code where I just had app listen because we'll need that later when we deployed because we will let our hosting provider manage SSL. But if you ever need to do it manually is how you do start a node server in HTTPS Mode.
+* I want to move on to our controllers which of course also house a lot of our core logic.
 
-### Using a Hosting Provider
+* for that feed controller. We have routes where we need to be authenticated.For example we need to be authenticated for creating posts.We need to be authenticated essentially for all our post related rulings.We need to be authenticated
 
-* Let's finally deploy and for that I will use a hosting provider called Heroku.
+* before we take care about that let's have a look at our auth controller. Therefore because these routes don't require us to be authenticated though does it really matter too
 
-* But let me also say that there are dozens hundreds thousands of hosting providers you could use and it's impossible to cover them all.
-So I will try my best to show you the general steps of the alignment and to explain how it works in general.
+* how we reach our controller functions here like sign up or log in. We of course reached them through our routes which are defined in the routes.So these are the API and points we're exposing in router.
 
-* You can created account by simply signing up again. That is free.("https://www.heroku.com/"). Hiroko is a hosting provider.
+* Well we are writing units tests. We are testing units in our code just as the middleware do you auth middleware.And therefore what will not test is routing, because that entire for forwarding of the request the execution of this method is all handled by express.And as I mentioned earlier you don't want to test our libraries.
 
-* we typically use hosting providers like Heroku but also like AWS For example, there we take our code and we deploy it on it to managed spaces on their computers also often called word virtual servers
+* but we could test our controller which is our own code of logics like login action
+```js
+exports.login = async (req, res, next) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  let loadedUser;
+  try {
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      const error = new Error('A user with this email could not be found.');
+      error.statusCode = 401;
+      throw error;
+    }
+    loadedUser = user;
+    const isEqual = await bcrypt.compare(password, user.password);
+    if (!isEqual) {
+      const error = new Error('Wrong password!');
+      error.statusCode = 401;
+      throw error;
+    }
+    const token = jwt.sign(
+      {
+        email: loadedUser.email,
+        userId: loadedUser._id.toString()
+      },
+      'somesupersecretsecret',
+      { expiresIn: '1h' }
+    );
+    res.status(200).json({ token: token, userId: loadedUser._id.toString() });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+```
+* We can test whether we're able to extract e-mail and password from the incoming request though that's a test that's not too useful because we will simulate the request that's coming in. So we decide whether that is set or not but we can then test if it behaves correctly if no e-mail is set for example or if we already have a user with that e-mail.
 
-* and this means that these providers have very large and powerful machines in their data centers and you typically dont rent an entire machine though you could do that.
+* However there is one new complexity added. Now we have a database now we're interacting with the User model here and the User model of course is
+based on our Mongoose models here. That's our user model and that behind the scenes uses Mongo D.B. and that of course brings one important question to the focus how can we test our database.How can we handle this now.
 
-* But apart on that machine.So part of the hard drive and some resources which are then provisioned for your managed space and your
-code runs totally separated from the other apps which might be running on the same computer on the same server.
+* And turns out there are two main strategies we can follow.
 
-* Your app runs separated from them and now you of course want to connect your app running on that virtual servers with your users
+* strategy number one for testing code that involves database operations is that we stub or mock the parts that actually rely on database access.
 
-* Now typically you don't directly connect your space on that machine to your servers though that is also possible on some providers.
+*  what would this mean ?
 
-* But instead a lot of providers manage a lot of the heavy lifting for you and they give you their own managed service you could say in front of your server where you can conveniently add SSL interruption compression logging or load balancing which means that when you have multiple virtual servers because you wrapped this really doing well and you need more resources
+* This could mean for example that here when we execute find one we again create a step that returns a predefined result and we then test if our code behaves correctly.
 
-* that in such a case incoming requests are sent to service with available capacities in an efficient way.So that is all handled by so-called managed service which are typically invisible to you which you don't configure  but which are part of the hosting provider package.
+* So for example we might be interested here in finding out how our code behaves when find one throws an error. So if we're having trouble interacting with the database or how our code behaves if we don't have a user with that e-mail address when logging in.
 
-* and you just use a nice user interface provided by the hosting provider to set up how your app behaves.Regarding SSL or regarding logging and so on.
-
-* Now this all runs in a private network which means that your own server and your code is not directly exposed to the web but it's exposed to that managed server which then in turn talks to the web and they offer to your users through a public server a gateway.
-
-* And that essentially is like a door where requests can come in there and then forward it to your server to your virtual server.
-
-* So this is how this works. This is how most hosting providers work.
-That is what happens behind the scene
-
-* Just important for you to know. Not really a lot of stuff you have to do on that. Now that is the behind the scenes stuff. Now let me show you how Heroku works and how we can play with it.(Refer Hosting Provider image)
-
-### Understanding the Project & the Git Setup
-
-* Click on sign up create a new account enter your data and you should end up on a similar dashboard  "create new app "
-
-* First of all we can ignore the pipeline feature here. The deployment method will use Hiroko get. Now what does get get is a tool which is not part of Heroku but used by Heroku get a version control system and as such it's a tool which you can use. It's totally optional but it helps a lot with saving and managing your source code.
-
-* important features commits are basically snapshots of your code which you can take.But when you can always switch so you can always go back to the older worship of your code.
-
-* But when you can always switch so you can always go back to the older worship of your code and have a look at it and then go back to your most recent one or rollback to an older commit.So this allows you to revert to older snapshots easily or while safely edit your code because you can always go back.
-
-* Branches also allow you to not just have one history of snapshots but multiple histories for different workings of your code.
-
-* ###### GIT version control tool ######
-
-#### A Deployment Example with Heroku
-
-* First step install heroku 
+* These are two different scenarios and we can write two different tests for that. Both scenarios should actually throw an error eventually.
 
 ```js
-brew install heroku/brew/heroku
+const expect = require('chai').expect;
+const sinon = require('sinon');
+
+const User = require('../models/user');
+const AuthController = require('../controllers/auth');
+
+describe('Auth Controller - Login', function() {
+    // added done - to tell mocha to wait
+    it('should throw an error with code 500 if accessing the database fails', function(done) {
+         // the first tactic we can apply we can simply stub that a ways that we don't make a real database access.
+
+         // And the important thing here of course is I'm faking that data base fail because I completely replace to find one method with a stub that will throw an error 
+        sinon.stub(User, 'findOne');
+        // because the actual thing I want to check is of course that we should throw an error with code 500. So I want to check whether our default status code in auth controller login action really gets applied correctly.
+        User.findOne.throws();
+        // So let's create our dummy Request object here 
+        const req = {
+            body: {
+            email: 'test@test.com',
+            password: 'tester'
+            }
+        };
+
+        // let's have a look at the off controller again and you should now recognize that we have to async keyword in front of that.
+
+        // It's not a normal function it's an async function and that means in the end we use promises in there.
+
+        // You might remember async await is just a more elegant syntax for using promises.
+
+        //So actually we have Asynchronous code in auth controller login which is a navigate complexity will have to deal with because the execution of that code will not happen synchronous.
+
+        // And that means that by default our expectation you won't work the way you might expect it to work.
+        // Now I can add then here because when you return a promise, then should now be executed once promise is done
+        AuthController.login(req, {}, () => {}).then(result => {
+            // here the expection is AuthController.login should throw error
+            expect(result).to.be.an('error');
+            // this statusCode 500 should match with controller login action status code.
+            expect(result).to.have.property('statusCode', 500);
+            // here done(), I signal that I want mocha to wait for this to execute because before it treats this test case as done 
+            done();
+        });
+        // in the end I also want to call restore here.
+        User.findOne.restore();
+        });
+});
 ```
 
-* Next step is login cmd
+### Testing Asynchronous Code
+
+* It passes because marker doesn't wait for this test case to finish because we actually have async code in there and by default it does not wait for that async code to resolve.
+
+*  it executes this code synchronously step by step and does not wait for this promise to resolve no matter how fast is this.
+
+* Now of course we can tell mocha to wait we do this by adding extra argument in this function we pass to it and that's the done argument.(check above code we added done!!)
+
+* Note this is optional and it is indeed a function which you can call so mocha gives you a function here which you can call once this test case is done. by default it's done once the execute the code top to bottom.
+
+* I called done() and I signal that I want mocha to wait for this code to execute because before it treats this test case as done.
+
+### Setting up a Testing Database
+
+* But I also mentioned that there is more than one way of dealing with code that access a database. The way we deal with it thus far is that we simply stub it away.
+
+* We create a stub for to find one method and then define what this should do for this test case and then I restore it.And that is absolutely fine.It prevents the real database access from happening here.
+
+* And that of course might be what we want because it allows us to run our test faster and of course important.
+
+* It also doesn't impact the database because your tests could still write data to the database and you definitely don't want this to happen in your production database at least.
+
+* It is however a valid setup to use a dedicated testing database because of course the downside is that your tests will run a bit longer.
+
+* The upside is that you have a very realistic testing environment.If you really hit a database and you really write data to that database and you read it from there you have a bit of more.
+
+* You don't just have a unit test you have kind of a integration test because you have a full flow of control you have a test under very realistic circumstance
+
+* in some cases this might be what you want and it might be easier than stubbing everything and writing a lot of stubbing code 
+
+* therefore let me show you how you could set up a testing environment for Mongo db where you use a dedicated testing database 
+
+* because that's important.You definitely don't want to use your production database for testing.
+
+* You don't want to mess with your users data for testing and accidentally deleted or anything like that.
+
+* So let's actually create a new test you're still related to the auth controller
+
+* let's now move on to the get user status method actually to get user status controller action.
 
 ```js
-heroku login
+exports.getUserStatus = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error('User not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+    res.status(200).json({ status: user.status });
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
 ```
+* Here test case is if there is no user status for user id throw error else just return empty.
 
-* the next step is to turn your codebase. So your project you have been working on in a git repository so that you can add git as a remote git repository and apply to it.
-
-* Just follow heroku git cmd.
-
-* Make sure that you also add a new file and that is Heroko specific.
-The proc file without a file extension
+* we need a request that has a user I.D. field because we're finding a user by that user I.D. and then we alter the response object by calling a status method on it an adjacent method.
 
 ```js
-// Procfile
-web: node app.js
+// first of all we need to connect to the database.
+const mongoose = require('mongoose');
+
+it('should send a response with valid user status for an existing user', function(done) {
+    // this again needs done keyword because we used async in controller  ..
+
+    mongoose
+    .connect(
+        // here i changed database to test database test-messages And that's super important. Don't use the production database.
+        'mongodb+srv://maximilian:9u4biljMQc4jjqbe@cluster0-ntrwp.mongodb.net/test-messages?retryWrites=true'
+    )
+    .then(result => {
+        // here we will write our test case
+        // first of all I need that dummy user as per model
+        const user = new User({
+            email: 'test@test.com',
+            password: 'tester',
+            name:'test',
+            post: [],
+            _id : '5c0f66b979af55031b34728a'
+        })
+        return user.save()
+    })
+    .then(() => {
+        // with that dummy setup we can add our testing logic
+        const req = {
+            userId : '5c0f66b979af55031b34728a',
+        }
+        const res = {
+            statusCode: 500,
+            userStatus: null,
+            status: function(code){
+                this.statusCode = code;
+                return this;
+            },
+            json: function(data){
+                this.userStatus = data.status;
+            }
+        };
+
+        AuthController.getUserStatus(req, res, ()=>{}).then(()=>{
+            expect(res.statusCode).to.be.equal(200);
+            // default status 'I am new!' as per user model
+            expect(res.userStatus).to.be.equal('I am new!');
+            done();
+        })
+    })
+    .catch(err => console.log(err));
+
+    })
+
 ```
-* this will instruct you Heroku to execute your app.js file when it tries to run your application.
 
-* Now for different hosting providers this might differ of course and there you simply have to check their documentation
-
-* Make sure you add a dot. Good ignore file because this will tail get which folders.It should not actually include in its snapshots.
-
-* do commit and push
-
-* Now with that you can go back to your dashboard and click on over there and you should see that succeeded build and you can now click on open app. This will open your app in a new tab and most likely this will not really succeed.
-
-* because all our node environment variables which we rely on for example to connect to the database are now not set anymore because in the proc file we instruct app.js
-
-* And this will not pass the environment variables only one environment variable is passed by default by Heroko and that is actually node env.And this will be set to production. That is something they do for you but all the environment variables are not set.
-
-* Now we have to do it on our own by simply grabbing these names and going back toward dashboard and there on the dashboard. You want to go to settings for your app and then go to "Config Vars"
-
-* and there you can now add your own config vars which are essentially the environment variables that are passed into your application.You simply add them here step by step as key value pairs.
-
-* And now we have all these environment variables added here.
-
-* we also need to change something on our mongoDb to set up in our case here because we are using that hosted mongo db atlus solution if you remember and there you have to remember that under security you have to white list IPs which are allowed to connect.
-
-* Now you need two white list IP off your running application.
-
-* And the thing about Heroku and its basic version here is that we don't have a static IP assigned to our project.
-
-* Instead it's a dynamic range.
-
-* Now attached you find some resources that help you for example assign a static IP if you have such a range. We only can do one thing on an IP address.
-
-* We can allow access from anywhere.Keep in mind we are still secure by username and password but still for a better set up I would recommend that you also ensure that you sign a static IP.
-
-* Now if that changed go back to your overview dashboard of your app and restart your server there by going to more restart
-
-* So essentially you should be able to interact with it just as you were able to do with that locally.But now it's running remotely.
-And as you can see it's automatically served by https
-
-### Storing User-generated Files on Heroku
-
-* Here's one important note about hosting our app on Heroku!
-
-* The user-generated/ uploaded images, are saved and served as intended. But like all hosting providers that offer virtual servers, your file storage is not persistent!
-
-* Your source code is saved and re-deployed when you shut down the server (or when it goes to sleep, as it does automatically after some time in the Heroku free tier).
-
-* But your generated and uploaded files are not stored and re-created. They would be lost after a server restart!
-
-* Therefore, it's recommended that you use a different storage place when using such a hosting provider.
-
-* In cases where you run your own server, which you fully own/ manage, that does of course not apply.
-
-* What would be alternatives?
-
-* A popular and very efficient + affordable alternative is AWS S3 (Simple Storage Service): https://aws.amazon.com/s3/
-
-* You can easily configure multer to store your files there with the help of another package: https://www.npmjs.com/package/multer-s3
-
-* To also serve your files, you can use packages like s3-proxy: https://www.npmjs.com/package/s3-proxy
-
-* For deleting the files (or interacting with them on your own in general), you'd use the AWS SDK: https://aws.amazon.com/sdk-for-node-js/
-
-### Deploying APIs
-
-* Now this of course was our shop application. It was not the rest API and not graphql API. actually deploying these does not differ there. we can deploy it in exactly the same way.
-
-* The only thing that will differ is that we can't really click Open app anymore.since this is just API 
-
-* Well we can but then on the starting page will not see much because there are no service side rendered views.
-
-* Instead we have the API running where we can send requests to and will then be our front end application or our mobile application where we have to adjust.You are able to send the request to our now running hosted application and not to localhost anymore.
-
-* And then the front end app or the mobile app is deployed differently anyways.
-
-* A mobile app is sent to your users for the app stores as a front end application as this one built with react typically is deployed as a static web application and that is something you can learn 
-
-* You simply built this project with the build script you can find in package.json
+* If test case timeout you could add longer timeout in package.json
 
 ```js
-npm run build
+//  because this is in milliseconds. by default this is 2 sec we increased to 5 sec
+"scripts": {
+    "test": "mocha --timeout 5000",
+    "start": "nodemon app.js"
+  },
 ```
-* And then you would take that code. In this case in the build folder and shipped that to a static web post like for example AWS as free and then serve your app on a totally different server then your node application is running on because as you learn many times in this course there is no strong relation between your node API and your Front-End mobile app whatever it is.
+* if you run test you could see test database
+
+###  Clean Up
+
+* Now first of all why do I need to quit this process with control C.
+
+* The reason for it is is that despite me calling done mocha detects that there is still some open process in the event loop and indeed there is our database connection which we open but never close.
+
+* So one thing we should do here is when we're done with our expectations we might want to call Mongoose disconnect and only when this is done.
+
+```js
+// in test controller
+
+AuthController.getUserStatus(req, res, ()=>{}).then(()=>{
+    expect(res.statusCode).to.be.equal(200);
+    // default status 'I am new!' as per user model
+    expect(res.userStatus).to.be.equal('I am new!');
+    // this deleteMany we used to clear db to avoid duplicate dummy data
+    User.deleteMany({}.then(() => {
+        mongoose.disconnect().then(() => {
+            done();
+        })
+    })
+})
+```
+### Hook
+
+* That cleaner solution comes in the form of lifecycle hooks provided by mocha
+
+* We have "describe" and "it", it are our test cases, describe allows us to group them instead of describe.
+
+* We have certain extra functions we can call that actually will run before all tests or before each tests at the same for after and after each.
+
+* Well let's say connecting to the database and creating one dummy user is something we want to do when
+our tests run not before every test
+
+* So we don't want to reconnect and recreate a user before every test.
+
+```js
+const expect = require('chai').expect;
+const sinon = require('sinon');
+const mongoose = require('mongoose');
+
+const User = require('../models/user');
+const AuthController = require('../controllers/auth');
+
+describe('Auth Controller', function() {
+    // before will simply run before your test cases
+    before(function(done) {
+        mongoose
+        .connect(
+            'mongodb+srv://maximilian:fmFLrH6d0DjMxWcg@cluster0-ntrwp.mongodb.net/test-messages?retryWrites=true'
+        )
+        .then(result => {
+            const user = new User({
+            email: 'test@test.com',
+            password: 'tester',
+            name: 'Test',
+            posts: [],
+            _id: '5c0f66b979af55031b34728a'
+            });
+            return user.save();
+        })
+        .then(() => {
+            done();
+        });
+    });
+
+    beforeEach(function() {});
+
+    afterEach(function() {});
+
+    it('should throw an error with code 500 if accessing the database fails', function(done) {
+        sinon.stub(User, 'findOne');
+        User.findOne.throws();
+
+        const req = {
+        body: {
+            email: 'test@test.com',
+            password: 'tester'
+        }
+        };
+
+        AuthController.login(req, {}, () => {}).then(result => {
+        expect(result).to.be.an('error');
+        expect(result).to.have.property('statusCode', 500);
+        done();
+        });
+
+        User.findOne.restore();
+    });
+
+    it('should send a response with a valid user status for an existing user', function(done) {
+        const req = { userId: '5c0f66b979af55031b34728a' };
+        const res = {
+        statusCode: 500,
+        userStatus: null,
+        status: function(code) {
+            this.statusCode = code;
+            return this;
+        },
+        json: function(data) {
+            this.userStatus = data.status;
+        }
+        };
+        AuthController.getUserStatus(req, res, () => {}).then(() => {
+        expect(res.statusCode).to.be.equal(200);
+        expect(res.userStatus).to.be.equal('I am new!');
+        done();
+        });
+    });
+    // After will simply run after all your test cases
+    after(function(done) {
+        User.deleteMany({})
+        .then(() => {
+            return mongoose.disconnect();
+        })
+        .then(() => {
+            done();
+        });
+    });
+});
+
+```
+* Besides before and after. There also are before each and after each noted differences that before each is initialization work that it runs before every test case.
+
+* and there are all those after each in case there is some functionality which need to run after every test case.
+
+* It could be fine to really use a database. It just should be a dedicated testing database. Now of course it's all the fine to use Stubbs as we did here.
+In case you don't really need or want that database access in case you want to speed up your tests you can step functionalities.
+
+* And you can even change it on a per test basis depending on a test needs to be faster or really doesn't care about the database access or if checking that data base code might be useful too.
+
+* To create post we need userID , which we getting it from middleware, and we using userID as one of the object of create post param. ie it needs authentication to do create post how can we test that ?? we want to test just the controller not the entire flow.
+
+* we can just fake that and we can pass on a request object that simply has a userID and we're done.
+
+* So let's now write a test for a create post and let's interact with the database and also we create post sucessfully. and also validations like really this post added to our users post array
+
+```js
+exports.createPost = async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const error = new Error('Validation failed, entered data is incorrect.');
+    error.statusCode = 422;
+    throw error;
+  }
+  if (!req.file) {
+    const error = new Error('No image provided.');
+    error.statusCode = 422;
+    throw error;
+  }
+  const imageUrl = req.file.path;
+  const title = req.body.title;
+  const content = req.body.content;
+  const post = new Post({
+    title: title,
+    content: content,
+    imageUrl: imageUrl,
+    creator: req.userId
+  });
+  try {
+    await post.save();
+    const user = await User.findById(req.userId);
+    user.posts.push(post);
+    const savedUser = await user.save();
+    res.status(201).json({
+      message: 'Post created successfully!',
+      post: post,
+      creator: { _id: user._id, name: user.name }
+    });
+    // here we are returning savedUser for testing purpose
+    return savedUser
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500;
+    }
+    next(err);
+  }
+};
+```
+
+* In test file
+
+```js
+const expect = require('chai').expect;
+const sinon = require('sinon');
+const mongoose = require('mongoose');
+
+const User = require('../models/user');
+const FeedController = require('../controllers/feed');
+
+describe('Feed Controller', function() {
+    before(function(done) {
+        mongoose
+        .connect(
+            'mongodb+srv://guna:fmFLrH6d0DjMxWcg@cluster0-ntrwp.mongodb.net/test-messages?retryWrites=true'
+        )
+        .then(result => {
+            const user = new User({
+            email: 'test@test.com',
+            password: 'tester',
+            name: 'Test',
+            posts: [],
+            _id: '5c0f66b979af55031b34728a'
+            });
+            return user.save();
+        })
+        .then(() => {
+            done();
+        });
+    });
+
+    beforeEach(function() {});
+
+    afterEach(function() {});
+
+    it('should add a created post to the posts of the creator', function(done) {
+        // We need this requred fields as controller create action
+        const req = {
+          body: {
+              title: 'Test Post',
+              content: 'A Test Post'
+          },
+          file: {
+              path: 'abc'
+          },
+          userId: '5c0f66b979af55031b34728a'
+        };
+        // *** we are not actually testing this response just to align with controller action we added this here
+        const res = {
+        status: function() {
+          // json method applied to not on the response object but on the status object, that is why we returning 'this'
+
+          // so that we are returning other reference of the entire object and  then has below Json function.
+            return this;
+        },
+        json: function() {}
+        };
+
+        FeedController.createPost(req, res, () => {}).then(savedUser => {
+          // savedUser is the returned data which we get from Create user controller action response
+        expect(savedUser).to.have.property('posts');
+        expect(savedUser.posts).to.have.length(1);
+        done();
+        });
+    });
+
+    after(function(done) {
+        User.deleteMany({})
+        .then(() => {
+            return mongoose.disconnect();
+        })
+        .then(() => {
+            done();
+        });
+    });
+});
+
+```
 
